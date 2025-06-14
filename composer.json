@@ -1,0 +1,31 @@
+{
+  "name": "tourze/tus-upload-server-bundle",
+  "description": "TUS服务端",
+  "license": "MIT",
+  "require": {
+    "php": "^8.1",
+    "doctrine/dbal": "^4.0",
+    "doctrine/doctrine-bundle": "^2.13",
+    "doctrine/orm": "^3.0",
+    "symfony/config": "^6.4",
+    "symfony/dependency-injection": "^6.4",
+    "symfony/doctrine-bridge": "^6.4",
+    "symfony/framework-bundle": "^6.4",
+    "symfony/http-kernel": "^6.4",
+    "symfony/yaml": "^6.4 || ^7.1"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^10.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Tourze\\TusUploadServerBundle\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tourze\\TusUploadServerBundle\\Tests\\": "tests"
+    }
+  }
+}
