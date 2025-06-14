@@ -42,7 +42,7 @@ class TusUploadController
         return $response;
     }
 
-    #[Route('/{uploadId}', name: 'head', methods: ['HEAD'], requirements: ['uploadId' => '[a-f0-9]{32}'])]
+    #[Route('/{uploadId}', name: 'head', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['HEAD'])]
     public function head(Request $request, string $uploadId): Response
     {
         try {
@@ -52,7 +52,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'patch', methods: ['PATCH'], requirements: ['uploadId' => '[a-f0-9]{32}'])]
+    #[Route('/{uploadId}', name: 'patch', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['PATCH'])]
     public function patch(Request $request, string $uploadId): Response
     {
         try {
@@ -62,7 +62,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'delete', methods: ['DELETE'], requirements: ['uploadId' => '[a-f0-9]{32}'])]
+    #[Route('/{uploadId}', name: 'delete', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['DELETE'])]
     public function delete(Request $request, string $uploadId): Response
     {
         try {
@@ -72,7 +72,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'options_upload', methods: ['OPTIONS'], requirements: ['uploadId' => '[a-f0-9]{32}'])]
+    #[Route('/{uploadId}', name: 'options_upload', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['OPTIONS'])]
     public function optionsUpload(): Response
     {
         return $this->tusRequestHandler->handleOptions();
