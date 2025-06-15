@@ -8,9 +8,9 @@ use League\Flysystem\FilesystemOperator;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
-use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTest;
+use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
-class TusUploadServiceIntegrationTest extends BaseIntegrationTest
+class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
 {
     private TusUploadService $tusUploadService;
     private FilesystemOperator $filesystem;

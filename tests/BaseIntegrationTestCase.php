@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\KernelInterface;
 use Tourze\IntegrationTestKernel\IntegrationTestKernel;
 use Tourze\TusUploadServerBundle\TusUploadServerBundle;
 
-abstract class BaseIntegrationTest extends KernelTestCase
+abstract class BaseIntegrationTestCase extends KernelTestCase
 {
     protected EntityManagerInterface $entityManager;
     protected ContainerInterface $container;

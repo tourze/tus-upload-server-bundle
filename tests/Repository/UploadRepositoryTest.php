@@ -6,9 +6,9 @@ namespace Tourze\TusUploadServerBundle\Tests\Repository;
 
 use Tourze\TusUploadServerBundle\Entity\Upload;
 use Tourze\TusUploadServerBundle\Repository\UploadRepository;
-use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTest;
+use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
-class UploadRepositoryTest extends BaseIntegrationTest
+class UploadRepositoryTest extends BaseIntegrationTestCase
 {
     private UploadRepository $repository;
 

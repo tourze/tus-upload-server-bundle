@@ -8,9 +8,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Tourze\TusUploadServerBundle\Controller\TusUploadController;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
-use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTest;
+use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
-class TusUploadControllerTest extends BaseIntegrationTest
+class TusUploadControllerTest extends BaseIntegrationTestCase
 {
     private TusUploadController $controller;
     private TusUploadService $tusUploadService;

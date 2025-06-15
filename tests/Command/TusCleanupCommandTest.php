@@ -9,9 +9,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Tourze\TusUploadServerBundle\Command\TusCleanupCommand;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
-use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTest;
+use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
-class TusCleanupCommandTest extends BaseIntegrationTest
+class TusCleanupCommandTest extends BaseIntegrationTestCase
 {
     private TusCleanupCommand $command;
     private TusUploadService $tusUploadService;
