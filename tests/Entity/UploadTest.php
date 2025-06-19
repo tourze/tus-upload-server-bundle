@@ -14,7 +14,7 @@ class UploadTest extends TestCase
         $upload = new Upload();
 
         $this->assertInstanceOf(\DateTime::class, $upload->getExpiredTime());
-        $this->assertGreaterThan(new \DateTime(), $upload->getExpiredTime());
+        $this->assertGreaterThan(new \DateTimeImmutable(), $upload->getExpiredTime());
         $this->assertEquals(0, $upload->getOffset());
         $this->assertFalse($upload->isCompleted());
         $this->assertNull($upload->getMetadata());
@@ -114,7 +114,7 @@ class UploadTest extends TestCase
     public function test_isExpired_withFutureDate_returnsFalse(): void
     {
         $upload = new Upload();
-        $futureDate = new \DateTime('+1 day');
+        $futureDate = new \DateTimeImmutable('+1 day');
         $upload->setExpiredTime($futureDate);
 
         $this->assertFalse($upload->isExpired());
@@ -123,7 +123,7 @@ class UploadTest extends TestCase
     public function test_isExpired_withPastDate_returnsTrue(): void
     {
         $upload = new Upload();
-        $pastDate = new \DateTime('-1 day');
+        $pastDate = new \DateTimeImmutable('-1 day');
         $upload->setExpiredTime($pastDate);
 
         $this->assertTrue($upload->isExpired());
@@ -132,7 +132,7 @@ class UploadTest extends TestCase
     public function test_createTime_getterAndSetter(): void
     {
         $upload = new Upload();
-        $createTime = new \DateTime('2023-01-01');
+        $createTime = new \DateTimeImmutable('2023-01-01');
 
         $upload->setCreateTime($createTime);
 
@@ -142,7 +142,7 @@ class UploadTest extends TestCase
     public function test_completeTime_getterAndSetter(): void
     {
         $upload = new Upload();
-        $completeTime = new \DateTime('2023-01-02');
+        $completeTime = new \DateTimeImmutable('2023-01-02');
 
         $upload->setCompleteTime($completeTime);
 
@@ -152,7 +152,7 @@ class UploadTest extends TestCase
     public function test_expiredTime_getterAndSetter(): void
     {
         $upload = new Upload();
-        $expiredTime = new \DateTime('2023-12-31');
+        $expiredTime = new \DateTimeImmutable('2023-12-31');
 
         $upload->setExpiredTime($expiredTime);
 

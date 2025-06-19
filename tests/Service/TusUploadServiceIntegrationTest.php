@@ -60,7 +60,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
     public function test_getUpload_withExpiredUpload_throwsExceptionAndDeletesUpload(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
-        $upload->setExpiredTime(new \DateTime('-1 day'));
+        $upload->setExpiredTime(new \DateTimeImmutable('-1 day'));
         $this->entityManager->persist($upload);
         $this->entityManager->flush();
 
@@ -203,15 +203,15 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
     public function test_cleanupExpiredUploads_withExpiredUploads_deletesExpiredOnes(): void
     {
         $expiredUpload1 = $this->tusUploadService->createUpload('expired1.txt', 'text/plain', 1024);
-        $expiredUpload1->setExpiredTime(new \DateTime('-1 day'));
+        $expiredUpload1->setExpiredTime(new \DateTimeImmutable('-1 day'));
         $this->entityManager->persist($expiredUpload1);
 
         $expiredUpload2 = $this->tusUploadService->createUpload('expired2.txt', 'text/plain', 1024);
-        $expiredUpload2->setExpiredTime(new \DateTime('-2 days'));
+        $expiredUpload2->setExpiredTime(new \DateTimeImmutable('-2 days'));
         $this->entityManager->persist($expiredUpload2);
 
         $validUpload = $this->tusUploadService->createUpload('valid.txt', 'text/plain', 1024);
-        $validUpload->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
         $this->entityManager->persist($validUpload);
 
         $this->entityManager->flush();
@@ -228,7 +228,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
     public function test_cleanupExpiredUploads_withNoExpiredUploads_returnsZero(): void
     {
         $validUpload = $this->tusUploadService->createUpload('valid.txt', 'text/plain', 1024);
-        $validUpload->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
         $this->entityManager->persist($validUpload);
         $this->entityManager->flush();
 

@@ -76,14 +76,14 @@ class TusRequestHandler
     private function parseMetadata(string $metadata): array
     {
         $result = [];
-        if (empty($metadata)) {
+        if ((bool) empty($metadata)) {
             return $result;
         }
 
         $pairs = explode(',', $metadata);
         foreach ($pairs as $pair) {
             $pair = trim($pair);
-            if (strpos($pair, ' ') !== false) {
+            if ((bool) strpos($pair, ' ') !== false) {
                 [$key, $value] = explode(' ', $pair, 2);
                 $result[trim($key)] = base64_decode($value);
             }
@@ -109,7 +109,7 @@ class TusRequestHandler
         $response->headers->set('Upload-Offset', (string) $upload->getOffset());
         $response->headers->set('Upload-Length', (string) $upload->getSize());
 
-        if ($upload->getMetadata()) {
+        if ($upload->getMetadata() !== null) {
             $response->headers->set('Upload-Metadata', $this->encodeMetadata($upload->getMetadata()));
         }
 
@@ -149,7 +149,7 @@ class TusRequestHandler
         }
 
         $checksumHeader = $request->headers->get('Upload-Checksum');
-        if ($checksumHeader) {
+        if ((bool) $checksumHeader) {
             [$algorithm, $checksum] = explode(' ', $checksumHeader, 2);
             $expectedChecksum = match (strtolower($algorithm)) {
                 'md5' => hash('md5', $data, true),

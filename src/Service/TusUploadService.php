@@ -47,7 +47,7 @@ class TusUploadService
     public function getUpload(string $uploadId): Upload
     {
         $upload = $this->uploadRepository->findByUploadId($uploadId);
-        if (!$upload) {
+        if ($upload === null) {
             throw new TusException("Upload not found", 404);
         }
 
@@ -61,7 +61,7 @@ class TusUploadService
 
     public function deleteUpload(Upload $upload): void
     {
-        if ($upload->getFilePath() && $this->filesystem->fileExists($upload->getFilePath())) {
+        if ($upload->getFilePath() !== null && $this->filesystem->fileExists($upload->getFilePath())) {
             $this->filesystem->delete($upload->getFilePath());
         }
 
@@ -85,7 +85,7 @@ class TusUploadService
         }
 
         $filePath = $upload->getFilePath();
-        if (!$filePath) {
+        if ($filePath === null) {
             throw new TusException("File path not set", 500);
         }
 
@@ -114,7 +114,7 @@ class TusUploadService
 
     public function validateChecksum(Upload $upload, string $checksum, string $algorithm): bool
     {
-        if (!$upload->getFilePath() || !$this->filesystem->fileExists($upload->getFilePath())) {
+        if ($upload->getFilePath() === null || !$this->filesystem->fileExists($upload->getFilePath())) {
             return false;
         }
 
@@ -148,7 +148,7 @@ class TusUploadService
         }
 
         $filePath = $upload->getFilePath();
-        if (!$filePath || !$this->filesystem->fileExists($filePath)) {
+        if ($filePath === null || !$this->filesystem->fileExists($filePath)) {
             throw new TusException("File not found", 404);
         }
 

@@ -31,15 +31,15 @@ class TusCleanupCommandTest extends BaseIntegrationTestCase
     public function test_execute_withExpiredUploads_cleansUpExpiredUploads(): void
     {
         $expiredUpload1 = $this->tusUploadService->createUpload('expired1.txt', 'text/plain', 1024);
-        $expiredUpload1->setExpiredTime(new \DateTime('-1 day'));
+        $expiredUpload1->setExpiredTime(new \DateTimeImmutable('-1 day'));
         $this->entityManager->persist($expiredUpload1);
 
         $expiredUpload2 = $this->tusUploadService->createUpload('expired2.txt', 'text/plain', 1024);
-        $expiredUpload2->setExpiredTime(new \DateTime('-2 days'));
+        $expiredUpload2->setExpiredTime(new \DateTimeImmutable('-2 days'));
         $this->entityManager->persist($expiredUpload2);
 
         $validUpload = $this->tusUploadService->createUpload('valid.txt', 'text/plain', 1024);
-        $validUpload->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
         $this->entityManager->persist($validUpload);
 
         $this->entityManager->flush();
@@ -57,15 +57,15 @@ class TusCleanupCommandTest extends BaseIntegrationTestCase
     public function test_execute_withMixedUploads_onlyCleansExpiredOnes(): void
     {
         $expiredUpload = $this->tusUploadService->createUpload('expired.txt', 'text/plain', 1024);
-        $expiredUpload->setExpiredTime(new \DateTime('-1 day'));
+        $expiredUpload->setExpiredTime(new \DateTimeImmutable('-1 day'));
         $this->entityManager->persist($expiredUpload);
 
         $validUpload1 = $this->tusUploadService->createUpload('valid1.txt', 'text/plain', 1024);
-        $validUpload1->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload1->setExpiredTime(new \DateTimeImmutable('+1 day'));
         $this->entityManager->persist($validUpload1);
 
         $validUpload2 = $this->tusUploadService->createUpload('valid2.txt', 'text/plain', 1024);
-        $validUpload2->setExpiredTime(new \DateTime('+2 days'));
+        $validUpload2->setExpiredTime(new \DateTimeImmutable('+2 days'));
         $this->entityManager->persist($validUpload2);
 
         $this->entityManager->flush();
@@ -101,7 +101,7 @@ class TusCleanupCommandTest extends BaseIntegrationTestCase
     public function test_execute_withVerboseOutput_displaysDetailedInformation(): void
     {
         $expiredUpload = $this->tusUploadService->createUpload('expired.txt', 'text/plain', 1024);
-        $expiredUpload->setExpiredTime(new \DateTime('-1 day'));
+        $expiredUpload->setExpiredTime(new \DateTimeImmutable('-1 day'));
         $this->entityManager->persist($expiredUpload);
         $this->entityManager->flush();
 

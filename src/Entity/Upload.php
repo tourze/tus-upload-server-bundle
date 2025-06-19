@@ -17,11 +17,10 @@ class Upload implements \Stringable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::INTEGER)]
+#[ORM\Column(type: Types::INTEGER, options: ['comment' => '字段说明'])]
     private ?int $id = null;
 
     #[IndexColumn]
-    #[ORM\Column(type: Types::STRING, length: 255, unique: true, options: ['comment' => '上传ID'])]
     private string $uploadId;
 
     #[ORM\Column(type: Types::STRING, length: 255, options: ['comment' => '文件名'])]
@@ -46,13 +45,12 @@ class Upload implements \Stringable
     private bool $completed = false;
 
     #[CreateTimeColumn]
-    #[ORM\Column(name: 'create_time', type: Types::DATETIME_MUTABLE, options: ['comment' => '创建时间'])]
     private \DateTime $createTime;
 
-    #[ORM\Column(name: 'complete_time', type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '完成时间'])]
+    #[ORM\Column(name: 'complete_time', type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '完成时间'])]
     private ?\DateTime $completeTime = null;
 
-    #[ORM\Column(name: 'expired_time', type: Types::DATETIME_MUTABLE, options: ['comment' => '过期时间'])]
+    #[ORM\Column(name: 'expired_time', type: Types::DATETIME_IMMUTABLE, options: ['comment' => '过期时间'])]
     private \DateTime $expiredTime;
 
     #[ORM\Column(type: Types::STRING, length: 64, nullable: true, options: ['comment' => '校验和'])]

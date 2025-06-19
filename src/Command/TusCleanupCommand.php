@@ -12,12 +12,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
 
 #[AsCommand(
-    name: 'tus:cleanup',
+    name: self::NAME,
     description: 'Clean up expired TUS uploads'
 )]
 class TusCleanupCommand extends Command
 {
-    public function __construct(
+    public const NAME = 'tus:cleanup';
+public function __construct(
         private readonly TusUploadService $tusUploadService
     ) {
         parent::__construct();

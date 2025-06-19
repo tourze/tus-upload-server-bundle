@@ -47,10 +47,10 @@ class UploadRepositoryTest extends BaseIntegrationTestCase
     public function test_findExpiredUploads_withExpiredUploads_returnsExpiredOnes(): void
     {
         $expiredUpload = $this->createTestUpload('expired123');
-        $expiredUpload->setExpiredTime(new \DateTime('-1 day'));
+        $expiredUpload->setExpiredTime(new \DateTimeImmutable('-1 day'));
         
         $validUpload = $this->createTestUpload('valid123');
-        $validUpload->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
 
         $this->entityManager->persist($expiredUpload);
         $this->entityManager->persist($validUpload);
@@ -65,7 +65,7 @@ class UploadRepositoryTest extends BaseIntegrationTestCase
     public function test_findExpiredUploads_withNoExpiredUploads_returnsEmptyArray(): void
     {
         $validUpload = $this->createTestUpload('valid123');
-        $validUpload->setExpiredTime(new \DateTime('+1 day'));
+        $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
 
         $this->entityManager->persist($validUpload);
         $this->entityManager->flush();
