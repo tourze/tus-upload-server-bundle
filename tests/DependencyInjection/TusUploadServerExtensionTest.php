@@ -19,13 +19,13 @@ class TusUploadServerExtensionTest extends TestCase
 
         $this->assertTrue($this->container->hasParameter('tus_upload.storage_path'));
         $this->assertTrue($this->container->hasParameter('tus_upload.max_upload_size'));
-        $this->assertEquals('%kernel.project_dir%/var/tus-uploads', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals(1073741824, $this->container->getParameter('tus_upload.max_upload_size'));
+        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
+        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_withCustomConfig_setsCustomParameters(): void
+    public function test_load_withCustomConfig_setsEnvironmentBasedParameters(): void
     {
-        // 检查扩展配置处理
+        // 现在使用环境变量，配置不会影响参数
         $configs = [
             [
                 'storage_path' => '/custom/path',
@@ -35,8 +35,8 @@ class TusUploadServerExtensionTest extends TestCase
 
         $this->extension->load($configs, $this->container);
 
-        $this->assertEquals('/custom/path', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals(512000000, $this->container->getParameter('tus_upload.max_upload_size'));
+        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
+        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
     }
 
     public function test_load_registersExpectedServices(): void
@@ -78,15 +78,15 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertCount(1, $tusRequestHandlerDefinition->getArguments());
     }
 
-    public function test_load_withEmptyConfig_usesDefaults(): void
+    public function test_load_withEmptyConfig_usesEnvironmentVars(): void
     {
         $this->extension->load([[]], $this->container);
 
-        $this->assertEquals('%kernel.project_dir%/var/tus-uploads', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals(1073741824, $this->container->getParameter('tus_upload.max_upload_size'));
+        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
+        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_withMultipleConfigArrays_mergesCorrectly(): void
+    public function test_load_withMultipleConfigArrays_usesEnvironmentVars(): void
     {
         $configs = [
             ['storage_path' => '/first/path'],
@@ -95,8 +95,9 @@ class TusUploadServerExtensionTest extends TestCase
 
         $this->extension->load($configs, $this->container);
 
-        $this->assertEquals('/first/path', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals(256000000, $this->container->getParameter('tus_upload.max_upload_size'));
+        // 配置被忽略，始终使用环境变量
+        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
+        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
     }
 
     public function test_extension_hasCorrectAlias(): void

@@ -49,8 +49,7 @@ class TusUploadServerBundleTest extends TestCase
 
     public function test_instantiation_doesNotThrowException(): void
     {
-        $this->expectNotToPerformAssertions();
-        
-        new TusUploadServerBundle();
+        $bundle = new TusUploadServerBundle();
+        $this->assertInstanceOf(TusUploadServerBundle::class, $bundle);
     }
 }

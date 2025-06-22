@@ -7,6 +7,7 @@ namespace Tourze\TusUploadServerBundle\Tests\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Tourze\TusUploadServerBundle\Controller\TusUploadController;
 use Tourze\TusUploadServerBundle\Entity\Upload;
+use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
 use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
@@ -157,7 +158,9 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
 
-        $deletedUpload = $this->entityManager->getRepository(Upload::class)->findByUploadId($uploadId);
+        /** @var UploadRepository $repository */
+        $repository = $this->entityManager->getRepository(Upload::class);
+        $deletedUpload = $repository->findByUploadId($uploadId);
         $this->assertNull($deletedUpload);
     }
 
@@ -194,7 +197,9 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
 
         $location = $response->headers->get('Location');
         $uploadId = substr($location, strrpos($location, '/') + 1);
-        $upload = $this->entityManager->getRepository(Upload::class)->findByUploadId($uploadId);
+        /** @var UploadRepository $repository */
+        $repository = $this->entityManager->getRepository(Upload::class);
+        $upload = $repository->findByUploadId($uploadId);
 
         $this->assertNotNull($upload);
         $this->assertEquals('test file.txt', $upload->getMetadata()['filename']);

@@ -9,6 +9,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 
 /**
+ * @extends ServiceEntityRepository<Upload>
  * @method Upload|null find($id, $lockMode = null, $lockVersion = null)
  * @method Upload|null findOneBy(array $criteria, array $orderBy = null)
  * @method Upload[] findAll()

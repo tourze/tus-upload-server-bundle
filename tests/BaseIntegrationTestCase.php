@@ -21,6 +21,10 @@ abstract class BaseIntegrationTestCase extends KernelTestCase
         $env = $options['environment'] ?? $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'test';
         $debug = $options['debug'] ?? $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? true;
 
+        // 设置测试环境变量
+        $_ENV['TUS_UPLOAD_STORAGE_PATH'] = sys_get_temp_dir() . '/tus-uploads-test';
+        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1073741824';
+
         return new IntegrationTestKernel($env, $debug, [
             TusUploadServerBundle::class => ['all' => true],
         ]);

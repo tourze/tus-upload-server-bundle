@@ -13,7 +13,7 @@ class UploadTest extends TestCase
     {
         $upload = new Upload();
 
-        $this->assertInstanceOf(\DateTime::class, $upload->getExpiredTime());
+        $this->assertInstanceOf(\DateTimeImmutable::class, $upload->getExpiredTime());
         $this->assertGreaterThan(new \DateTimeImmutable(), $upload->getExpiredTime());
         $this->assertEquals(0, $upload->getOffset());
         $this->assertFalse($upload->isCompleted());
@@ -96,7 +96,7 @@ class UploadTest extends TestCase
         $upload->setCompleted(true);
 
         $this->assertTrue($upload->isCompleted());
-        $this->assertInstanceOf(\DateTime::class, $upload->getCompleteTime());
+        $this->assertInstanceOf(\DateTimeImmutable::class, $upload->getCompleteTime());
     }
 
     public function test_setCompleted_withFalse_doesNotChangeCompletionTime(): void

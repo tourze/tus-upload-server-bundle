@@ -7,7 +7,7 @@ namespace Tourze\TusUploadServerBundle\Entity;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\CreateTimeAware;
 use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 
 #[ORM\Entity(repositoryClass: UploadRepository::class)]
@@ -15,11 +15,13 @@ use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 #[ORM\Index(name: 'tus_uploads_idx_expired_time', columns: ['expired_time'])]
 class Upload implements \Stringable
 {
+    use CreateTimeAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
 #[ORM\Column(type: Types::INTEGER, options: ['comment' => '字段说明'])]
     private ?int $id = null;
 
+    #[ORM\Column(type: Types::STRING, length: 36, unique: true, options: ['comment' => '上传ID'])]
     #[IndexColumn]
     private string $uploadId;
 
@@ -44,14 +46,12 @@ class Upload implements \Stringable
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false, 'comment' => '是否完成上传'])]
     private bool $completed = false;
 
-    #[CreateTimeColumn]
-    private \DateTime $createTime;
 
     #[ORM\Column(name: 'complete_time', type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '完成时间'])]
-    private ?\DateTime $completeTime = null;
+    private ?\DateTimeImmutable $completeTime = null;
 
     #[ORM\Column(name: 'expired_time', type: Types::DATETIME_IMMUTABLE, options: ['comment' => '过期时间'])]
-    private \DateTime $expiredTime;
+    private \DateTimeImmutable $expiredTime;
 
     #[ORM\Column(type: Types::STRING, length: 64, nullable: true, options: ['comment' => '校验和'])]
     private ?string $checksum = null;
@@ -61,8 +61,7 @@ class Upload implements \Stringable
 
     public function __construct()
     {
-        $this->createTime = new \DateTime();
-        $this->expiredTime = new \DateTime('+7 days');
+        $this->expiredTime = new \DateTimeImmutable('+7 days');
     }
 
     public function __toString(): string
@@ -161,39 +160,28 @@ class Upload implements \Stringable
     {
         $this->completed = $completed;
         if ($completed && $this->completeTime === null) {
-            $this->completeTime = new \DateTime();
+            $this->completeTime = new \DateTimeImmutable();
         }
         return $this;
     }
 
-    public function getCreateTime(): \DateTime
-    {
-        return $this->createTime;
-    }
-
-    public function setCreateTime(\DateTime $createTime): self
-    {
-        $this->createTime = $createTime;
-        return $this;
-    }
-
-    public function getCompleteTime(): ?\DateTime
+    public function getCompleteTime(): ?\DateTimeImmutable
     {
         return $this->completeTime;
     }
 
-    public function setCompleteTime(?\DateTime $completeTime): self
+    public function setCompleteTime(?\DateTimeImmutable $completeTime): self
     {
         $this->completeTime = $completeTime;
         return $this;
     }
 
-    public function getExpiredTime(): \DateTime
+    public function getExpiredTime(): \DateTimeImmutable
     {
         return $this->expiredTime;
     }
 
-    public function setExpiredTime(\DateTime $expiredTime): self
+    public function setExpiredTime(\DateTimeImmutable $expiredTime): self
     {
         $this->expiredTime = $expiredTime;
         return $this;
@@ -223,7 +211,7 @@ class Upload implements \Stringable
 
     public function isExpired(): bool
     {
-        return $this->expiredTime < new \DateTime();
+        return $this->expiredTime < new \DateTimeImmutable();
     }
 
     public function getProgress(): float

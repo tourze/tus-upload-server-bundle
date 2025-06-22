@@ -7,6 +7,7 @@ namespace Tourze\TusUploadServerBundle\Tests\Service;
 use League\Flysystem\FilesystemOperator;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 use Tourze\TusUploadServerBundle\Exception\TusException;
+use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
 use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
@@ -73,7 +74,9 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         try {
             $this->tusUploadService->getUpload($uploadId);
         } catch (TusException $e) {
-            $deletedUpload = $this->entityManager->getRepository(Upload::class)->findByUploadId($uploadId);
+            /** @var UploadRepository $repository */
+            $repository = $this->entityManager->getRepository(Upload::class);
+            $deletedUpload = $repository->findByUploadId($uploadId);
             $this->assertNull($deletedUpload);
             throw $e;
         }
@@ -196,7 +199,9 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->deleteUpload($upload);
 
         $this->assertFalse($this->filesystem->fileExists($filePath));
-        $deletedUpload = $this->entityManager->getRepository(Upload::class)->findByUploadId($uploadId);
+        /** @var UploadRepository $repository */
+        $repository = $this->entityManager->getRepository(Upload::class);
+        $deletedUpload = $repository->findByUploadId($uploadId);
         $this->assertNull($deletedUpload);
     }
 

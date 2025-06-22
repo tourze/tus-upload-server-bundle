@@ -15,7 +15,7 @@ use Tourze\TusUploadServerBundle\Service\TusUploadService;
 class TusRequestHandlerTest extends TestCase
 {
     private TusRequestHandler $handler;
-    private MockObject $uploadService;
+    private MockObject&TusUploadService $uploadService;
 
     public function test_handleOptions_returnsCorrectHeaders(): void
     {
