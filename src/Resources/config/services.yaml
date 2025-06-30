@@ -6,20 +6,16 @@ services:
     autowire: true      # Automatically injects dependencies in your services.
     autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
 
-  # TUS Upload Services
   Tourze\TusUploadServerBundle\Service\:
     resource: '../../Service/'
-
   Tourze\TusUploadServerBundle\Handler\:
     resource: '../../Handler/'
-
   Tourze\TusUploadServerBundle\Controller\:
     resource: '../../Controller/'
     tags: ['controller.service_arguments']
-
+    public: true
   Tourze\TusUploadServerBundle\Command\:
     resource: '../../Command/'
-
   Tourze\TusUploadServerBundle\Repository\:
     resource: '../../Repository/'
 
@@ -27,15 +23,9 @@ services:
   tus_upload.filesystem:
     class: League\Flysystem\FilesystemOperator
     factory: ['@Tourze\TusUploadServerBundle\Service\FilesystemFactory', 'createLocalFilesystem']
-    arguments:
-      - '%tus_upload.storage_path%'
 
   # Override the service binding
   Tourze\TusUploadServerBundle\Service\TusUploadService:
     arguments:
       $filesystem: '@tus_upload.filesystem'
       $uploadPath: 'uploads'
-
-  Tourze\TusUploadServerBundle\Handler\TusRequestHandler:
-    arguments:
-      $maxUploadSize: '%tus_upload.max_upload_size%'

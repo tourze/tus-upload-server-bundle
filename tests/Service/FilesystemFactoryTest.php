@@ -10,24 +10,54 @@ use Tourze\TusUploadServerBundle\Service\FilesystemFactory;
 
 class FilesystemFactoryTest extends TestCase
 {
-    public function test_createLocalFilesystem_withValidPath_returnsFilesystemOperator(): void
+    public function test_createLocalFilesystem_usesEnvironmentVariable(): void
     {
         $factory = new FilesystemFactory();
-        $rootPath = sys_get_temp_dir();
+        $originalValue = $_ENV['TUS_UPLOAD_STORAGE_PATH'] ?? null;
 
-        $filesystem = $factory->createLocalFilesystem($rootPath);
+        try {
+            $_ENV['TUS_UPLOAD_STORAGE_PATH'] = sys_get_temp_dir();
 
-        $this->assertInstanceOf(FilesystemOperator::class, $filesystem);
+            $filesystem = $factory->createLocalFilesystem();
+
+            $this->assertInstanceOf(FilesystemOperator::class, $filesystem);
+        } finally {
+            if ($originalValue !== null) {
+                $_ENV['TUS_UPLOAD_STORAGE_PATH'] = $originalValue;
+            } else {
+                unset($_ENV['TUS_UPLOAD_STORAGE_PATH']);
+            }
+        }
     }
 
-    public function test_createLocalFilesystem_withDifferentPaths_createsDifferentInstances(): void
+    public function test_createLocalFilesystem_usesDefaultWhenEnvNotSet(): void
     {
         $factory = new FilesystemFactory();
-        $path1 = sys_get_temp_dir() . '/test1';
-        $path2 = sys_get_temp_dir() . '/test2';
+        $originalValue = $_ENV['TUS_UPLOAD_STORAGE_PATH'] ?? null;
 
-        $filesystem1 = $factory->createLocalFilesystem($path1);
-        $filesystem2 = $factory->createLocalFilesystem($path2);
+        try {
+            unset($_ENV['TUS_UPLOAD_STORAGE_PATH']);
+            // 暂时设置一个可写的默认路径用于测试
+            $_ENV['TUS_UPLOAD_STORAGE_PATH'] = sys_get_temp_dir() . '/tus-test';
+
+            $filesystem = $factory->createLocalFilesystem();
+
+            $this->assertInstanceOf(FilesystemOperator::class, $filesystem);
+        } finally {
+            if ($originalValue !== null) {
+                $_ENV['TUS_UPLOAD_STORAGE_PATH'] = $originalValue;
+            } else {
+                unset($_ENV['TUS_UPLOAD_STORAGE_PATH']);
+            }
+        }
+    }
+
+    public function test_createLocalFilesystem_createsDifferentInstances(): void
+    {
+        $factory = new FilesystemFactory();
+
+        $filesystem1 = $factory->createLocalFilesystem();
+        $filesystem2 = $factory->createLocalFilesystem();
 
         $this->assertNotSame($filesystem1, $filesystem2);
         $this->assertInstanceOf(FilesystemOperator::class, $filesystem1);

@@ -16,9 +16,10 @@ use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 class Upload implements \Stringable
 {
     use CreateTimeAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-#[ORM\Column(type: Types::INTEGER, options: ['comment' => '字段说明'])]
+    #[ORM\Column(type: Types::INTEGER, options: ['comment' => '字段说明'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 36, unique: true, options: ['comment' => '上传ID'])]
@@ -45,7 +46,6 @@ class Upload implements \Stringable
 
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false, 'comment' => '是否完成上传'])]
     private bool $completed = false;
-
 
     #[ORM\Column(name: 'complete_time', type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '完成时间'])]
     private ?\DateTimeImmutable $completeTime = null;
@@ -189,7 +189,7 @@ class Upload implements \Stringable
 
     public function getChecksum(): ?string
     {
-        return $this->checksum;         
+        return $this->checksum;
     }
 
     public function setChecksum(?string $checksum): self

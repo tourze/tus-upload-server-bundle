@@ -29,12 +29,14 @@ return [
 ];
 ```
 
-在 `config/packages/tus_upload_server.yaml` 中配置：
+在 `.env` 文件中使用环境变量配置：
 
-```yaml
-tus_upload_server:
-    storage_path: '%kernel.project_dir%/var/tus-uploads'  # 文件存储位置
-    max_upload_size: 1073741824  # 1GB 字节数
+```bash
+# 上传文件的存储路径
+TUS_UPLOAD_STORAGE_PATH=/var/tus-uploads
+
+# 最大上传大小（字节，示例为 1GB）
+TUS_UPLOAD_MAX_SIZE=1073741824
 ```
 
 在 `config/routes.yaml` 中包含路由：

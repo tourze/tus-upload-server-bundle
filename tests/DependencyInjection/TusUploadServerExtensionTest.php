@@ -13,19 +13,18 @@ class TusUploadServerExtensionTest extends TestCase
     private TusUploadServerExtension $extension;
     private ContainerBuilder $container;
 
-    public function test_load_withDefaultConfig_setsDefaultParameters(): void
+    public function test_load_withDefaultConfig_loadsServices(): void
     {
         $this->extension->load([], $this->container);
 
-        $this->assertTrue($this->container->hasParameter('tus_upload.storage_path'));
-        $this->assertTrue($this->container->hasParameter('tus_upload.max_upload_size'));
-        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
+        // 现在不再设置参数，直接通过环境变量读取
+        $this->assertFalse($this->container->hasParameter('tus_upload.storage_path'));
+        $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_withCustomConfig_setsEnvironmentBasedParameters(): void
+    public function test_load_withCustomConfig_ignoresConfig(): void
     {
-        // 现在使用环境变量，配置不会影响参数
+        // 现在直接使用环境变量，配置被忽略
         $configs = [
             [
                 'storage_path' => '/custom/path',
@@ -35,8 +34,9 @@ class TusUploadServerExtensionTest extends TestCase
 
         $this->extension->load($configs, $this->container);
 
-        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
+        // 不再设置任何参数
+        $this->assertFalse($this->container->hasParameter('tus_upload.storage_path'));
+        $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
     public function test_load_registersExpectedServices(): void
@@ -75,15 +75,17 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertCount(2, $tusUploadServiceDefinition->getArguments());
 
         $tusRequestHandlerDefinition = $this->container->getDefinition('Tourze\TusUploadServerBundle\Handler\TusRequestHandler');
-        $this->assertCount(1, $tusRequestHandlerDefinition->getArguments());
+        // TusRequestHandler 现在只有一个参数（TusUploadService），不再有 maxUploadSize
+        $this->assertCount(0, $tusRequestHandlerDefinition->getArguments());
     }
 
     public function test_load_withEmptyConfig_usesEnvironmentVars(): void
     {
         $this->extension->load([[]], $this->container);
 
-        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
+        // 现在不再设置参数，服务直接读取环境变量
+        $this->assertFalse($this->container->hasParameter('tus_upload.storage_path'));
+        $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
     public function test_load_withMultipleConfigArrays_usesEnvironmentVars(): void
@@ -95,9 +97,9 @@ class TusUploadServerExtensionTest extends TestCase
 
         $this->extension->load($configs, $this->container);
 
-        // 配置被忽略，始终使用环境变量
-        $this->assertEquals('%env(TUS_UPLOAD_STORAGE_PATH)%', $this->container->getParameter('tus_upload.storage_path'));
-        $this->assertEquals('%env(int:TUS_UPLOAD_MAX_SIZE)%', $this->container->getParameter('tus_upload.max_upload_size'));
+        // 配置被忽略，服务直接读取环境变量
+        $this->assertFalse($this->container->hasParameter('tus_upload.storage_path'));
+        $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
     public function test_extension_hasCorrectAlias(): void

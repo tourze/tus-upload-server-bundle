@@ -29,12 +29,14 @@ return [
 ];
 ```
 
-Configure the bundle in `config/packages/tus_upload_server.yaml`:
+Configure the bundle using environment variables in your `.env` file:
 
-```yaml
-tus_upload_server:
-    storage_path: '%kernel.project_dir%/var/tus-uploads'  # Where files are stored
-    max_upload_size: 1073741824  # 1GB in bytes
+```bash
+# Storage path for uploaded files
+TUS_UPLOAD_STORAGE_PATH=/var/tus-uploads
+
+# Maximum upload size in bytes (1GB example)
+TUS_UPLOAD_MAX_SIZE=1073741824
 ```
 
 Include the routes in `config/routes.yaml`:

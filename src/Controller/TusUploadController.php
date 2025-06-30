@@ -10,7 +10,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 use Tourze\TusUploadServerBundle\Handler\TusRequestHandler;
 
-#[Route('/files', name: 'tus_upload_')]
+#[Route(path: '/files', name: 'tus_upload_')]
 class TusUploadController
 {
     public function __construct(
@@ -18,13 +18,13 @@ class TusUploadController
     ) {
     }
 
-    #[Route('', name: 'options', methods: ['OPTIONS'])]
+    #[Route(path: '', name: 'options', methods: ['OPTIONS'])]
     public function options(): Response
     {
         return $this->tusRequestHandler->handleOptions();
     }
 
-    #[Route('', name: 'create', methods: ['POST'])]
+    #[Route(path: '', name: 'create', methods: ['POST'])]
     public function create(Request $request): Response
     {
         try {
@@ -42,7 +42,7 @@ class TusUploadController
         return $response;
     }
 
-    #[Route('/{uploadId}', name: 'head', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['HEAD'])]
+    #[Route(path: '/{uploadId}', name: 'head', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['HEAD'])]
     public function head(Request $request, string $uploadId): Response
     {
         try {
@@ -52,7 +52,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'patch', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['PATCH'])]
+    #[Route(path: '/{uploadId}', name: 'patch', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['PATCH'])]
     public function patch(Request $request, string $uploadId): Response
     {
         try {
@@ -62,7 +62,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'delete', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['DELETE'])]
+    #[Route(path: '/{uploadId}', name: 'delete', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['DELETE'])]
     public function delete(Request $request, string $uploadId): Response
     {
         try {
@@ -72,7 +72,7 @@ class TusUploadController
         }
     }
 
-    #[Route('/{uploadId}', name: 'options_upload', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['OPTIONS'])]
+    #[Route(path: '/{uploadId}', name: 'options_upload', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['OPTIONS'])]
     public function optionsUpload(): Response
     {
         return $this->tusRequestHandler->handleOptions();

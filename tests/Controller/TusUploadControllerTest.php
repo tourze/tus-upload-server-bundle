@@ -15,6 +15,7 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
 {
     private TusUploadController $controller;
     private TusUploadService $tusUploadService;
+    private UploadRepository $uploadRepository;
 
     public function test_options_returnsCorrectHeaders(): void
     {
@@ -158,9 +159,7 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
 
-        /** @var UploadRepository $repository */
-        $repository = $this->entityManager->getRepository(Upload::class);
-        $deletedUpload = $repository->findByUploadId($uploadId);
+        $deletedUpload = $this->uploadRepository->findByUploadId($uploadId);
         $this->assertNull($deletedUpload);
     }
 
@@ -197,9 +196,7 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
 
         $location = $response->headers->get('Location');
         $uploadId = substr($location, strrpos($location, '/') + 1);
-        /** @var UploadRepository $repository */
-        $repository = $this->entityManager->getRepository(Upload::class);
-        $upload = $repository->findByUploadId($uploadId);
+        $upload = $this->uploadRepository->findByUploadId($uploadId);
 
         $this->assertNotNull($upload);
         $this->assertEquals('test file.txt', $upload->getMetadata()['filename']);
@@ -248,5 +245,6 @@ class TusUploadControllerTest extends BaseIntegrationTestCase
         parent::setUp();
         $this->controller = $this->container->get(TusUploadController::class);
         $this->tusUploadService = $this->container->get(TusUploadService::class);
+        $this->uploadRepository = $this->container->get(UploadRepository::class);
     }
 }

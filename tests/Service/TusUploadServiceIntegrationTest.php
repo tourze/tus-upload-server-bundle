@@ -15,6 +15,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
 {
     private TusUploadService $tusUploadService;
     private FilesystemOperator $filesystem;
+    private UploadRepository $uploadRepository;
 
     public function test_createUpload_withValidData_persistsUpload(): void
     {
@@ -74,9 +75,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         try {
             $this->tusUploadService->getUpload($uploadId);
         } catch (TusException $e) {
-            /** @var UploadRepository $repository */
-            $repository = $this->entityManager->getRepository(Upload::class);
-            $deletedUpload = $repository->findByUploadId($uploadId);
+            $deletedUpload = $this->uploadRepository->findByUploadId($uploadId);
             $this->assertNull($deletedUpload);
             throw $e;
         }
@@ -199,9 +198,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->deleteUpload($upload);
 
         $this->assertFalse($this->filesystem->fileExists($filePath));
-        /** @var UploadRepository $repository */
-        $repository = $this->entityManager->getRepository(Upload::class);
-        $deletedUpload = $repository->findByUploadId($uploadId);
+        $deletedUpload = $this->uploadRepository->findByUploadId($uploadId);
         $this->assertNull($deletedUpload);
     }
 
@@ -225,7 +222,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
 
         $this->assertEquals(2, $deletedCount);
 
-        $remainingUploads = $this->entityManager->getRepository(Upload::class)->findAll();
+        $remainingUploads = $this->uploadRepository->findAll();
         $this->assertCount(1, $remainingUploads);
         $this->assertEquals('valid.txt', $remainingUploads[0]->getFilename());
     }
@@ -283,5 +280,6 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         parent::setUp();
         $this->tusUploadService = $this->container->get(TusUploadService::class);
         $this->filesystem = $this->container->get('tus_upload.filesystem');
+        $this->uploadRepository = $this->container->get(UploadRepository::class);
     }
 }

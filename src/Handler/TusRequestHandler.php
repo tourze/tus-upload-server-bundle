@@ -16,9 +16,13 @@ class TusRequestHandler
     private const SUPPORTED_CHECKSUM_ALGORITHMS = ['md5', 'sha1', 'sha256'];
 
     public function __construct(
-        private readonly TusUploadService $uploadService,
-        private readonly int $maxUploadSize = 1024 * 1024 * 1024 // 1GB default
+        private readonly TusUploadService $uploadService
     ) {
+    }
+
+    private function getMaxUploadSize(): int
+    {
+        return (int)($_ENV['TUS_UPLOAD_MAX_SIZE'] ?? 1024 * 1024 * 1024); // 1GB default
     }
 
     public function handleOptions(): Response
@@ -27,7 +31,7 @@ class TusRequestHandler
         $response->headers->set('Tus-Resumable', self::TUS_VERSION);
         $response->headers->set('Tus-Version', self::TUS_VERSION);
         $response->headers->set('Tus-Extension', implode(',', self::SUPPORTED_EXTENSIONS));
-        $response->headers->set('Tus-Max-Size', (string) $this->maxUploadSize);
+        $response->headers->set('Tus-Max-Size', (string)$this->getMaxUploadSize());
         $response->headers->set('Tus-Checksum-Algorithm', implode(',', self::SUPPORTED_CHECKSUM_ALGORITHMS));
         $response->headers->set('Access-Control-Allow-Origin', '*');
         $response->headers->set('Access-Control-Allow-Methods', 'POST, GET, HEAD, PATCH, DELETE, OPTIONS');
@@ -45,8 +49,8 @@ class TusRequestHandler
             throw new TusException('Missing or invalid Upload-Length header', 400);
         }
 
-        $uploadLength = (int) $uploadLength;
-        if ($uploadLength > $this->maxUploadSize) {
+        $uploadLength = (int)$uploadLength;
+        if ($uploadLength > $this->getMaxUploadSize()) {
             throw new TusException('Upload size exceeds maximum allowed size', 413);
         }
 
@@ -76,14 +80,14 @@ class TusRequestHandler
     private function parseMetadata(string $metadata): array
     {
         $result = [];
-        if ((bool) empty($metadata)) {
+        if ((bool)empty($metadata)) {
             return $result;
         }
 
         $pairs = explode(',', $metadata);
         foreach ($pairs as $pair) {
             $pair = trim($pair);
-            if ((bool) strpos($pair, ' ') !== false) {
+            if ((bool)strpos($pair, ' ') !== false) {
                 [$key, $value] = explode(' ', $pair, 2);
                 $result[trim($key)] = base64_decode($value);
             }
@@ -106,8 +110,8 @@ class TusRequestHandler
 
         $response = new Response();
         $response->headers->set('Tus-Resumable', self::TUS_VERSION);
-        $response->headers->set('Upload-Offset', (string) $upload->getOffset());
-        $response->headers->set('Upload-Length', (string) $upload->getSize());
+        $response->headers->set('Upload-Offset', (string)$upload->getOffset());
+        $response->headers->set('Upload-Length', (string)$upload->getSize());
 
         if ($upload->getMetadata() !== null) {
             $response->headers->set('Upload-Metadata', $this->encodeMetadata($upload->getMetadata()));
@@ -121,7 +125,7 @@ class TusRequestHandler
     {
         $pairs = [];
         foreach ($metadata as $key => $value) {
-            $pairs[] = $key . ' ' . base64_encode((string) $value);
+            $pairs[] = $key . ' ' . base64_encode((string)$value);
         }
         return implode(',', $pairs);
     }
@@ -137,7 +141,7 @@ class TusRequestHandler
             throw new TusException('Missing or invalid Upload-Offset header', 400);
         }
 
-        $offset = (int) $uploadOffset;
+        $offset = (int)$uploadOffset;
         $contentType = $request->headers->get('Content-Type');
         if ($contentType !== 'application/offset+octet-stream') {
             throw new TusException('Invalid Content-Type', 400);
@@ -149,7 +153,7 @@ class TusRequestHandler
         }
 
         $checksumHeader = $request->headers->get('Upload-Checksum');
-        if ((bool) $checksumHeader) {
+        if ((bool)$checksumHeader) {
             [$algorithm, $checksum] = explode(' ', $checksumHeader, 2);
             $expectedChecksum = match (strtolower($algorithm)) {
                 'md5' => hash('md5', $data, true),
@@ -167,7 +171,7 @@ class TusRequestHandler
 
         $response = new Response();
         $response->headers->set('Tus-Resumable', self::TUS_VERSION);
-        $response->headers->set('Upload-Offset', (string) $upload->getOffset());
+        $response->headers->set('Upload-Offset', (string)$upload->getOffset());
         $this->addCorsHeaders($response);
 
         return $response;

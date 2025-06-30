@@ -19,18 +19,30 @@ class TusRequestHandlerTest extends TestCase
 
     public function test_handleOptions_returnsCorrectHeaders(): void
     {
-        $response = $this->handler->handleOptions();
+        // 设置测试环境变量
+        $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
+        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1048576';
 
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
-        $this->assertEquals('1.0.0', $response->headers->get('Tus-Version'));
-        $this->assertStringContainsString('creation', $response->headers->get('Tus-Extension'));
-        $this->assertStringContainsString('expiration', $response->headers->get('Tus-Extension'));
-        $this->assertStringContainsString('checksum', $response->headers->get('Tus-Extension'));
-        $this->assertStringContainsString('termination', $response->headers->get('Tus-Extension'));
-        $this->assertEquals('1048576', $response->headers->get('Tus-Max-Size'));
-        $this->assertStringContainsString('md5,sha1,sha256', $response->headers->get('Tus-Checksum-Algorithm'));
-        $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
+        try {
+            $response = $this->handler->handleOptions();
+
+            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
+            $this->assertEquals('1.0.0', $response->headers->get('Tus-Version'));
+            $this->assertStringContainsString('creation', $response->headers->get('Tus-Extension'));
+            $this->assertStringContainsString('expiration', $response->headers->get('Tus-Extension'));
+            $this->assertStringContainsString('checksum', $response->headers->get('Tus-Extension'));
+            $this->assertStringContainsString('termination', $response->headers->get('Tus-Extension'));
+            $this->assertEquals('1048576', $response->headers->get('Tus-Max-Size'));
+            $this->assertStringContainsString('md5,sha1,sha256', $response->headers->get('Tus-Checksum-Algorithm'));
+            $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
+        } finally {
+            if ($originalValue !== null) {
+                $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
+            } else {
+                unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
+            }
+        }
     }
 
     public function test_handlePost_withValidRequest_returnsCreatedResponse(): void
@@ -84,15 +96,27 @@ class TusRequestHandlerTest extends TestCase
 
     public function test_handlePost_withUploadTooLarge_throwsException(): void
     {
-        $request = new Request();
-        $request->headers->set('Tus-Resumable', '1.0.0');
-        $request->headers->set('Upload-Length', '2097152'); // 2MB, exceeds 1MB limit
+        // 设置小的上传限制用于测试
+        $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
+        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1048576'; // 1MB
 
-        $this->expectException(TusException::class);
-        $this->expectExceptionMessage('Upload size exceeds maximum allowed size');
-        $this->expectExceptionCode(413);
+        try {
+            $request = new Request();
+            $request->headers->set('Tus-Resumable', '1.0.0');
+            $request->headers->set('Upload-Length', '2097152'); // 2MB, exceeds 1MB limit
 
-        $this->handler->handlePost($request);
+            $this->expectException(TusException::class);
+            $this->expectExceptionMessage('Upload size exceeds maximum allowed size');
+            $this->expectExceptionCode(413);
+
+            $this->handler->handlePost($request);
+        } finally {
+            if ($originalValue !== null) {
+                $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
+            } else {
+                unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
+            }
+        }
     }
 
     public function test_handlePost_withMetadata_parsesMetadataCorrectly(): void
@@ -319,17 +343,27 @@ class TusRequestHandlerTest extends TestCase
 
     public function test_constructor_withCustomMaxSize_setsMaxSize(): void
     {
-        $customMaxSize = 2048;
-        $handler = new TusRequestHandler($this->uploadService, $customMaxSize);
+        $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
+        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '2048';
 
-        $response = $handler->handleOptions();
+        try {
+            $handler = new TusRequestHandler($this->uploadService);
 
-        $this->assertEquals('2048', $response->headers->get('Tus-Max-Size'));
+            $response = $handler->handleOptions();
+
+            $this->assertEquals('2048', $response->headers->get('Tus-Max-Size'));
+        } finally {
+            if ($originalValue !== null) {
+                $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
+            } else {
+                unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
+            }
+        }
     }
 
     protected function setUp(): void
     {
         $this->uploadService = $this->createMock(TusUploadService::class);
-        $this->handler = new TusRequestHandler($this->uploadService, 1024 * 1024);
+        $this->handler = new TusRequestHandler($this->uploadService);
     }
 }
