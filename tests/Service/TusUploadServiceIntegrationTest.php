@@ -5,19 +5,27 @@ declare(strict_types=1);
 namespace Tourze\TusUploadServerBundle\Tests\Service;
 
 use League\Flysystem\FilesystemOperator;
-use Tourze\TusUploadServerBundle\Entity\Upload;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
-use Tourze\TusUploadServerBundle\Tests\BaseIntegrationTestCase;
 
-class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
+/**
+ * @internal
+ */
+#[CoversClass(TusUploadService::class)]
+#[RunTestsInSeparateProcesses]
+final class TusUploadServiceIntegrationTest extends AbstractIntegrationTestCase
 {
     private TusUploadService $tusUploadService;
+
     private FilesystemOperator $filesystem;
+
     private UploadRepository $uploadRepository;
 
-    public function test_createUpload_withValidData_persistsUpload(): void
+    public function testCreateUploadWithValidDataPersistsUpload(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024, ['author' => 'test']);
 
@@ -27,10 +35,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertEquals(1024, $upload->getSize());
         $this->assertEquals(['author' => 'test'], $upload->getMetadata());
         $this->assertNotEmpty($upload->getUploadId());
-        $this->assertStringStartsWith('uploads/', $upload->getFilePath());
+        $filePath = $upload->getFilePath();
+        $this->assertStringContainsString('/', $filePath ?? '');
+        $this->assertStringEndsWith($upload->getUploadId(), $filePath ?? '');
     }
 
-    public function test_createUpload_withNullMetadata_createsUpload(): void
+    public function testCreateUploadWithNullMetadataCreatesUpload(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
 
@@ -39,7 +49,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertNull($upload->getMetadata());
     }
 
-    public function test_getUpload_withExistingUpload_returnsUpload(): void
+    public function testGetUploadWithExistingUploadReturnsUpload(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $uploadId = $upload->getUploadId();
@@ -50,7 +60,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertEquals($uploadId, $result->getUploadId());
     }
 
-    public function test_getUpload_withNonExistentUpload_throwsException(): void
+    public function testGetUploadWithNonExistentUploadThrowsException(): void
     {
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload not found');
@@ -59,12 +69,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->getUpload('nonexistent');
     }
 
-    public function test_getUpload_withExpiredUpload_throwsExceptionAndDeletesUpload(): void
+    public function testGetUploadWithExpiredUploadThrowsExceptionAndDeletesUpload(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $upload->setExpiredTime(new \DateTimeImmutable('-1 day'));
-        $this->entityManager->persist($upload);
-        $this->entityManager->flush();
+        self::getEntityManager()->persist($upload);
+        self::getEntityManager()->flush();
 
         $uploadId = $upload->getUploadId();
 
@@ -81,7 +91,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         }
     }
 
-    public function test_writeChunk_withValidData_writesChunkAndUpdatesOffset(): void
+    public function testWriteChunkWithValidDataWritesChunkAndUpdatesOffset(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $data = 'Hello, World!';
@@ -89,11 +99,15 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $result = $this->tusUploadService->writeChunk($upload, $data, 0);
 
         $this->assertEquals(strlen($data), $result->getOffset());
-        $this->assertTrue($this->filesystem->fileExists($result->getFilePath()));
-        $this->assertEquals($data, $this->filesystem->read($result->getFilePath()));
+        $filePath = $result->getFilePath();
+        $filePath = $result->getFilePath();
+        $this->assertTrue($this->filesystem->fileExists($filePath ?? ''));
+        $filePath = $result->getFilePath();
+        $filePath = $result->getFilePath();
+        $this->assertEquals($data, $this->filesystem->read($filePath ?? ''));
     }
 
-    public function test_writeChunk_withAppendData_appendsToExistingFile(): void
+    public function testWriteChunkWithAppendDataAppendsToExistingFile(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $data1 = 'Hello, ';
@@ -103,10 +117,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $result = $this->tusUploadService->writeChunk($upload, $data2, strlen($data1));
 
         $this->assertEquals(strlen($data1) + strlen($data2), $result->getOffset());
-        $this->assertEquals($data1 . $data2, $this->filesystem->read($result->getFilePath()));
+        $filePath = $result->getFilePath();
+        $filePath = $result->getFilePath();
+        $this->assertEquals($data1 . $data2, $this->filesystem->read($filePath ?? ''));
     }
 
-    public function test_writeChunk_withCompleteUpload_marksAsCompleted(): void
+    public function testWriteChunkWithCompleteUploadMarksAsCompleted(): void
     {
         $fileSize = 13;
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', $fileSize);
@@ -118,7 +134,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertNotNull($result->getCompleteTime());
     }
 
-    public function test_writeChunk_withInvalidOffset_throwsException(): void
+    public function testWriteChunkWithInvalidOffsetThrowsException(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
 
@@ -129,7 +145,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->writeChunk($upload, 'data', 10);
     }
 
-    public function test_writeChunk_withDataExceedingSize_throwsException(): void
+    public function testWriteChunkWithDataExceedingSizeThrowsException(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 10);
 
@@ -140,12 +156,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->writeChunk($upload, 'This is too long', 0);
     }
 
-    public function test_writeChunk_withCompletedUpload_throwsException(): void
+    public function testWriteChunkWithCompletedUploadThrowsException(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $upload->setCompleted(true);
-        $this->entityManager->persist($upload);
-        $this->entityManager->flush();
+        self::getEntityManager()->persist($upload);
+        self::getEntityManager()->flush();
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload already completed');
@@ -154,7 +170,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->writeChunk($upload, 'data', 0);
     }
 
-    public function test_validateChecksum_withValidChecksum_returnsTrue(): void
+    public function testValidateChecksumWithValidChecksumReturnsTrue(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $data = 'Hello, World!';
@@ -166,7 +182,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertTrue($result);
     }
 
-    public function test_validateChecksum_withInvalidChecksum_returnsFalse(): void
+    public function testValidateChecksumWithInvalidChecksumReturnsFalse(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $data = 'Hello, World!';
@@ -177,7 +193,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertFalse($result);
     }
 
-    public function test_validateChecksum_withUnsupportedAlgorithm_returnsFalse(): void
+    public function testValidateChecksumWithUnsupportedAlgorithmReturnsFalse(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $data = 'Hello, World!';
@@ -188,12 +204,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertFalse($result);
     }
 
-    public function test_deleteUpload_withValidUpload_deletesUploadAndFile(): void
+    public function testDeleteUploadWithValidUploadDeletesUploadAndFile(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $this->tusUploadService->writeChunk($upload, 'test data', 0);
         $uploadId = $upload->getUploadId();
-        $filePath = $upload->getFilePath();
+        $filePath = $upload->getFilePath() ?? '';
 
         $this->tusUploadService->deleteUpload($upload);
 
@@ -202,21 +218,21 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertNull($deletedUpload);
     }
 
-    public function test_cleanupExpiredUploads_withExpiredUploads_deletesExpiredOnes(): void
+    public function testCleanupExpiredUploadsWithExpiredUploadsDeletesExpiredOnes(): void
     {
         $expiredUpload1 = $this->tusUploadService->createUpload('expired1.txt', 'text/plain', 1024);
         $expiredUpload1->setExpiredTime(new \DateTimeImmutable('-1 day'));
-        $this->entityManager->persist($expiredUpload1);
+        self::getEntityManager()->persist($expiredUpload1);
 
         $expiredUpload2 = $this->tusUploadService->createUpload('expired2.txt', 'text/plain', 1024);
         $expiredUpload2->setExpiredTime(new \DateTimeImmutable('-2 days'));
-        $this->entityManager->persist($expiredUpload2);
+        self::getEntityManager()->persist($expiredUpload2);
 
         $validUpload = $this->tusUploadService->createUpload('valid.txt', 'text/plain', 1024);
         $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
-        $this->entityManager->persist($validUpload);
+        self::getEntityManager()->persist($validUpload);
 
-        $this->entityManager->flush();
+        self::getEntityManager()->flush();
 
         $deletedCount = $this->tusUploadService->cleanupExpiredUploads();
 
@@ -227,19 +243,19 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertEquals('valid.txt', $remainingUploads[0]->getFilename());
     }
 
-    public function test_cleanupExpiredUploads_withNoExpiredUploads_returnsZero(): void
+    public function testCleanupExpiredUploadsWithNoExpiredUploadsReturnsZero(): void
     {
         $validUpload = $this->tusUploadService->createUpload('valid.txt', 'text/plain', 1024);
         $validUpload->setExpiredTime(new \DateTimeImmutable('+1 day'));
-        $this->entityManager->persist($validUpload);
-        $this->entityManager->flush();
+        self::getEntityManager()->persist($validUpload);
+        self::getEntityManager()->flush();
 
         $deletedCount = $this->tusUploadService->cleanupExpiredUploads();
 
         $this->assertEquals(0, $deletedCount);
     }
 
-    public function test_getFileContent_withCompletedUpload_returnsContent(): void
+    public function testGetFileContentWithCompletedUploadReturnsContent(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 13);
         $data = 'Hello, World!';
@@ -250,7 +266,7 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->assertEquals($data, $content);
     }
 
-    public function test_getFileContent_withIncompleteUpload_throwsException(): void
+    public function testGetFileContentWithIncompleteUploadThrowsException(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
 
@@ -261,12 +277,12 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->getFileContent($upload);
     }
 
-    public function test_getFileContent_withMissingFile_throwsException(): void
+    public function testGetFileContentWithMissingFileThrowsException(): void
     {
         $upload = $this->tusUploadService->createUpload('test.txt', 'text/plain', 1024);
         $upload->setCompleted(true);
-        $this->entityManager->persist($upload);
-        $this->entityManager->flush();
+        self::getEntityManager()->persist($upload);
+        self::getEntityManager()->flush();
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('File not found');
@@ -275,11 +291,28 @@ class TusUploadServiceIntegrationTest extends BaseIntegrationTestCase
         $this->tusUploadService->getFileContent($upload);
     }
 
-    protected function setUp(): void
+    protected function onSetUp(): void
+    {        /** @var TusUploadService $tusUploadService */
+        $tusUploadService = self::getContainer()->get(TusUploadService::class);
+        $this->tusUploadService = $tusUploadService;
+
+        /** @var FilesystemOperator $filesystem */
+        $filesystem = self::getContainer()->get('tus_upload.filesystem');
+        $this->filesystem = $filesystem;
+
+        /** @var UploadRepository $uploadRepository */
+        $uploadRepository = self::getContainer()->get(UploadRepository::class);
+        $this->uploadRepository = $uploadRepository;
+
+        // Clean database before each test
+        $connection = self::getEntityManager()->getConnection();
+        $connection->executeStatement('DELETE FROM tus_uploads');
+    }
+
+    protected function onTearDown(): void
     {
-        parent::setUp();
-        $this->tusUploadService = $this->container->get(TusUploadService::class);
-        $this->filesystem = $this->container->get('tus_upload.filesystem');
-        $this->uploadRepository = $this->container->get(UploadRepository::class);
+        // Clean database (commented out to allow schema creation first)
+        // $connection = self::getEntityManager()->getConnection();
+        // $connection->executeStatement('DELETE FROM tus_uploads');
     }
 }

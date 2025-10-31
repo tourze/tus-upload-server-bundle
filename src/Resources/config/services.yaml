@@ -1,6 +1,16 @@
 # Parameters will be set by the Extension class
+parameters:
+    default_upload_path: '/tmp/tus-uploads'
 
 services:
+  # Alias for AttributeClassLoader service
+  Symfony\Component\Routing\Loader\AttributeClassLoader: '@routing.loader.attribute'
+
+  # TUS filesystem service
+  tus_upload.filesystem:
+    class: League\Flysystem\FilesystemOperator
+    factory: ['@Tourze\TusUploadServerBundle\Service\FilesystemFactory', 'createLocalFilesystem']
+
   # default configuration for services in *this* file
   _defaults:
     autowire: true      # Automatically injects dependencies in your services.
@@ -8,24 +18,23 @@ services:
 
   Tourze\TusUploadServerBundle\Service\:
     resource: '../../Service/'
+
+  # Explicit configuration for AttributeControllerLoader to avoid autoconfigure conflicts
+  Tourze\TusUploadServerBundle\Service\AttributeControllerLoader:
+    autowire: true
+    autoconfigure: false
+    tags: ['routing.auto.loader']
+
+  # Explicit configuration for TusUploadService to use the filesystem service
+  Tourze\TusUploadServerBundle\Service\TusUploadService:
+    arguments:
+      $filesystem: '@tus_upload.filesystem'
   Tourze\TusUploadServerBundle\Handler\:
     resource: '../../Handler/'
   Tourze\TusUploadServerBundle\Controller\:
     resource: '../../Controller/'
     tags: ['controller.service_arguments']
-    public: true
   Tourze\TusUploadServerBundle\Command\:
     resource: '../../Command/'
   Tourze\TusUploadServerBundle\Repository\:
     resource: '../../Repository/'
-
-  # Filesystem configuration
-  tus_upload.filesystem:
-    class: League\Flysystem\FilesystemOperator
-    factory: ['@Tourze\TusUploadServerBundle\Service\FilesystemFactory', 'createLocalFilesystem']
-
-  # Override the service binding
-  Tourze\TusUploadServerBundle\Service\TusUploadService:
-    arguments:
-      $filesystem: '@tus_upload.filesystem'
-      $uploadPath: 'uploads'

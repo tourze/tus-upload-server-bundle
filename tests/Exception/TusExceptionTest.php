@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tourze\TusUploadServerBundle\Tests\Exception;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Tourze\PHPUnitBase\AbstractExceptionTestCase;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 
-class TusExceptionTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(TusException::class)]
+final class TusExceptionTest extends AbstractExceptionTestCase
 {
-    public function test_constructor_withDefaults_setsDefaultValues(): void
+    public function testConstructorWithDefaultsSetsDefaultValues(): void
     {
         $exception = new TusException();
 
@@ -18,7 +23,7 @@ class TusExceptionTest extends TestCase
         $this->assertNull($exception->getPrevious());
     }
 
-    public function test_constructor_withMessage_setsMessage(): void
+    public function testConstructorWithMessageSetsMessage(): void
     {
         $message = 'Test exception message';
         $exception = new TusException($message);
@@ -27,7 +32,7 @@ class TusExceptionTest extends TestCase
         $this->assertEquals(0, $exception->getCode());
     }
 
-    public function test_constructor_withMessageAndCode_setsMessageAndCode(): void
+    public function testConstructorWithMessageAndCodeSetsMessageAndCode(): void
     {
         $message = 'Test exception message';
         $code = 404;
@@ -37,7 +42,7 @@ class TusExceptionTest extends TestCase
         $this->assertEquals($code, $exception->getCode());
     }
 
-    public function test_constructor_withAllParameters_setsAllValues(): void
+    public function testConstructorWithAllParametersSetsAllValues(): void
     {
         $message = 'Test exception message';
         $code = 500;
@@ -49,17 +54,17 @@ class TusExceptionTest extends TestCase
         $this->assertEquals($previous, $exception->getPrevious());
     }
 
-    public function test_extendsException_isInstanceOfException(): void
+    public function testExtendsExceptionIsInstanceOfException(): void
     {
         $exception = new TusException();
 
         $this->assertInstanceOf(\Exception::class, $exception);
     }
 
-    public function test_inheritance_canBeCaughtAsException(): void
+    public function testInheritanceCanBeCaughtAsException(): void
     {
         $caught = false;
-        
+
         try {
             throw new TusException('Test message', 400);
         } catch (\Exception $e) {

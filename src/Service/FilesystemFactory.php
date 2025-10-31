@@ -10,10 +10,18 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 
 class FilesystemFactory
 {
+    private string $uploadPath;
+
+    public function __construct(?string $uploadPath = null)
+    {
+        $envPath = $_ENV['TUS_UPLOAD_STORAGE_PATH'] ?? null;
+        $this->uploadPath = $uploadPath ?? (is_string($envPath) ? $envPath : '/tmp/tus-uploads');
+    }
+
     public function createLocalFilesystem(): FilesystemOperator
     {
-        $rootPath = $_ENV['TUS_UPLOAD_STORAGE_PATH'] ?? '/var/tus-uploads';
-        $adapter = new LocalFilesystemAdapter($rootPath);
+        $adapter = new LocalFilesystemAdapter($this->uploadPath);
+
         return new Filesystem($adapter);
     }
 }

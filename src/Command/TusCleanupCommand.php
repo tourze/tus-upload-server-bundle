@@ -18,8 +18,9 @@ use Tourze\TusUploadServerBundle\Service\TusUploadService;
 class TusCleanupCommand extends Command
 {
     public const NAME = 'tus:cleanup';
-public function __construct(
-        private readonly TusUploadService $tusUploadService
+
+    public function __construct(
+        private readonly TusUploadService $tusUploadService,
     ) {
         parent::__construct();
     }
@@ -32,7 +33,7 @@ public function __construct(
 
         $deletedCount = $this->tusUploadService->cleanupExpiredUploads();
 
-        if ($deletedCount === 0) {
+        if (0 === $deletedCount) {
             $io->success('No expired uploads found.');
         } else {
             $io->success(sprintf('Cleaned up %d expired uploads.', $deletedCount));

@@ -1,6 +1,28 @@
 # TUS Upload Server Bundle
 
+[![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue.svg)](https://www.php.net/)
+[![License](https://img.shields.io/github/license/tourze/php-monorepo)](LICENSE)  
+[![Build Status](https://img.shields.io/github/actions/workflow/status/tourze/php-monorepo/ci.yml)](https://github.com/tourze/php-monorepo/actions)
+[![Code Coverage](https://img.shields.io/codecov/c/github/tourze/php-monorepo)](https://codecov.io/gh/tourze/php-monorepo)
+
+[English](README.md) | [中文](README.zh-CN.md)
+
 A Symfony bundle implementing the [TUS resumable upload protocol](https://tus.io/) version 1.0.0.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Dependencies](#dependencies)
+- [Usage](#usage)
+- [Advanced Usage](#advanced-usage)
+- [Commands](#commands)
+- [Services](#services)
+- [Events](#events)
+- [Testing](#testing)
+- [Security Considerations](#security-considerations)
+- [License](#license)
 
 ## Features
 
@@ -32,19 +54,38 @@ return [
 Configure the bundle using environment variables in your `.env` file:
 
 ```bash
-# Storage path for uploaded files
+# Storage path for uploaded files (defaults to /tmp/tus-uploads)
 TUS_UPLOAD_STORAGE_PATH=/var/tus-uploads
 
-# Maximum upload size in bytes (1GB example)
-TUS_UPLOAD_MAX_SIZE=1073741824
+# Upload path for service (defaults to /tmp/tus-uploads)
+TUS_UPLOAD_PATH=/var/tus-uploads
 ```
 
-Include the routes in `config/routes.yaml`:
+Configure routing manually or use the controller service directly. The bundle provides a `TusUploadController` that can be accessed at your desired paths through your application's routing configuration.
 
-```yaml
-tus_upload:
-    resource: '@TusUploadServerBundle/Resources/config/routes.yaml'
-```
+## Dependencies
+
+This bundle requires the following dependencies:
+
+### Core Dependencies
+- **PHP 8.1+** - Required for modern PHP features and type declarations
+- **Symfony 6.4+** - Framework foundation
+- **Doctrine ORM 3.0+** - For database entity management
+- **League Flysystem 3.10+** - File storage abstraction layer
+
+### Symfony Components
+- `symfony/config` - Configuration system
+- `symfony/console` - Command line interface
+- `symfony/dependency-injection` - Service container
+- `symfony/framework-bundle` - Core framework bundle
+- `symfony/http-foundation` - HTTP abstractions
+- `symfony/routing` - URL routing system
+- `symfony/validator` - Data validation
+
+### Optional Dependencies
+- **Redis/Memcached** - For distributed locking (recommended for production)
+- **AWS S3/Google Cloud** - For cloud file storage
+- **Database** - MySQL, PostgreSQL, or SQLite for metadata storage
 
 ## Database Setup
 
@@ -130,6 +171,148 @@ const upload = new tus.Upload(file, {
 });
 
 upload.start();
+```
+
+## Advanced Usage
+
+### Custom Storage Configuration
+
+You can configure different storage backends by implementing a custom filesystem factory:
+
+```php
+<?php
+
+namespace App\Service;
+
+use League\Flysystem\Filesystem;
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+use Aws\S3\S3Client;
+
+class CustomFilesystemFactory
+{
+    public function createS3Filesystem(): Filesystem
+    {
+        $client = new S3Client([
+            'credentials' => [
+                'key'    => $_ENV['AWS_ACCESS_KEY_ID'],
+                'secret' => $_ENV['AWS_SECRET_ACCESS_KEY'],
+            ],
+            'region' => $_ENV['AWS_DEFAULT_REGION'],
+            'version' => 'latest',
+        ]);
+
+        $adapter = new AwsS3V3Adapter($client, $_ENV['AWS_BUCKET']);
+        
+        return new Filesystem($adapter);
+    }
+}
+```
+
+### Custom Upload Path Strategy
+
+Implement a custom upload path strategy:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Tourze\TusUploadServerBundle\Entity\Upload;
+
+class DateBasedUploadPathStrategy
+{
+    public function generatePath(Upload $upload): string
+    {
+        $date = $upload->getCreateTime()->format('Y/m/d');
+        $hash = substr(md5($upload->getUploadId()), 0, 8);
+        
+        return sprintf('uploads/%s/%s/%s', $date, $hash, $upload->getFilename());
+    }
+}
+```
+
+### Event-Driven Processing
+
+Handle upload events for custom processing:
+
+```php
+<?php
+
+namespace App\EventSubscriber;
+
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Tourze\TusUploadServerBundle\Event\UploadCompletedEvent;
+use Tourze\TusUploadServerBundle\Event\UploadCreatedEvent;
+
+class UploadProcessingSubscriber implements EventSubscriberInterface
+{
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            UploadCreatedEvent::class => 'onUploadCreated',
+            UploadCompletedEvent::class => 'onUploadCompleted',
+        ];
+    }
+    
+    public function onUploadCreated(UploadCreatedEvent $event): void
+    {
+        $upload = $event->getUpload();
+        // Log upload creation, check quotas, etc.
+    }
+    
+    public function onUploadCompleted(UploadCompletedEvent $event): void
+    {
+        $upload = $event->getUpload();
+        // Process completed file, generate thumbnails, scan for viruses, etc.
+        
+        // Example: Move file to final destination
+        $finalPath = sprintf('processed/%s', $upload->getFilename());
+        // ... move file logic
+    }
+}
+```
+
+### Performance Optimization
+
+For high-traffic scenarios, consider these optimizations:
+
+#### 1. Database Indexing
+```sql
+-- Add indexes for frequent queries
+CREATE INDEX idx_tus_uploads_created_expired ON tus_uploads(created_at, expired_time);
+CREATE INDEX idx_tus_uploads_upload_id ON tus_uploads(upload_id);
+```
+
+#### 2. Caching Upload Metadata
+```php
+<?php
+
+use Symfony\Contracts\Cache\CacheInterface;
+
+class CachedUploadService
+{
+    public function __construct(
+        private readonly TusUploadService $tusUploadService,
+        private readonly CacheInterface $cache
+    ) {}
+    
+    public function getUpload(string $uploadId): ?Upload
+    {
+        return $this->cache->get(
+            "upload.{$uploadId}",
+            fn() => $this->tusUploadService->getUpload($uploadId)
+        );
+    }
+}
+```
+
+#### 3. Chunked Upload Optimization
+```yaml
+# config/packages/tus_upload.yaml
+tus_upload:
+    chunk_size: 1048576  # 1MB chunks
+    max_file_size: 1073741824  # 1GB max file size
+    cleanup_interval: 3600  # Cleanup every hour
 ```
 
 ## Commands

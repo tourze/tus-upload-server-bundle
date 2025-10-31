@@ -10,25 +10,30 @@ use Symfony\Component\Routing\Attribute\Route;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 use Tourze\TusUploadServerBundle\Handler\TusRequestHandler;
 
-#[Route(path: '/files', name: 'tus_upload_')]
-class TusUploadController
+final class TusUploadController
 {
     public function __construct(
-        private readonly TusRequestHandler $tusRequestHandler
+        private readonly TusRequestHandler $tusRequestHandler,
     ) {
     }
 
-    #[Route(path: '', name: 'options', methods: ['OPTIONS'])]
-    public function options(): Response
-    {
-        return $this->tusRequestHandler->handleOptions();
-    }
-
-    #[Route(path: '', name: 'create', methods: ['POST'])]
-    public function create(Request $request): Response
+    #[Route(path: '/files', name: 'tus_upload_root', methods: ['OPTIONS', 'POST'])]
+    #[Route(path: '/files/{uploadId}', name: 'tus_upload_with_id', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['HEAD', 'PATCH', 'DELETE', 'OPTIONS'])]
+    public function __invoke(Request $request): Response
     {
         try {
-            return $this->tusRequestHandler->handlePost($request);
+            $method = $request->getMethod();
+            /** @var string|null $uploadId */
+            $uploadId = $request->attributes->get('uploadId');
+
+            return match ($method) {
+                'OPTIONS' => $this->tusRequestHandler->handleOptions(),
+                'POST' => $this->tusRequestHandler->handlePost($request),
+                'HEAD' => $this->tusRequestHandler->handleHead($request, (string) $uploadId),
+                'PATCH' => $this->tusRequestHandler->handlePatch($request, (string) $uploadId),
+                'DELETE' => $this->tusRequestHandler->handleDelete($request, (string) $uploadId),
+                default => new Response('Method not allowed', 405),
+            };
         } catch (TusException $e) {
             return $this->createErrorResponse($e);
         }
@@ -39,42 +44,7 @@ class TusUploadController
         $response = new Response($exception->getMessage(), $exception->getCode());
         $response->headers->set('Content-Type', 'text/plain');
         $response->headers->set('Access-Control-Allow-Origin', '*');
+
         return $response;
-    }
-
-    #[Route(path: '/{uploadId}', name: 'head', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['HEAD'])]
-    public function head(Request $request, string $uploadId): Response
-    {
-        try {
-            return $this->tusRequestHandler->handleHead($request, $uploadId);
-        } catch (TusException $e) {
-            return $this->createErrorResponse($e);
-        }
-    }
-
-    #[Route(path: '/{uploadId}', name: 'patch', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['PATCH'])]
-    public function patch(Request $request, string $uploadId): Response
-    {
-        try {
-            return $this->tusRequestHandler->handlePatch($request, $uploadId);
-        } catch (TusException $e) {
-            return $this->createErrorResponse($e);
-        }
-    }
-
-    #[Route(path: '/{uploadId}', name: 'delete', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['DELETE'])]
-    public function delete(Request $request, string $uploadId): Response
-    {
-        try {
-            return $this->tusRequestHandler->handleDelete($request, $uploadId);
-        } catch (TusException $e) {
-            return $this->createErrorResponse($e);
-        }
-    }
-
-    #[Route(path: '/{uploadId}', name: 'options_upload', requirements: ['uploadId' => '[a-f0-9]{32}'], methods: ['OPTIONS'])]
-    public function optionsUpload(): Response
-    {
-        return $this->tusRequestHandler->handleOptions();
     }
 }

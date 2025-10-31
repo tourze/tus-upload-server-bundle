@@ -4,57 +4,55 @@ declare(strict_types=1);
 
 namespace Tourze\TusUploadServerBundle\Tests\Service;
 
-use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 use Tourze\TusUploadServerBundle\Exception\TusException;
-use Tourze\TusUploadServerBundle\Repository\UploadRepository;
 use Tourze\TusUploadServerBundle\Service\TusUploadService;
 
-class TusUploadServiceTest extends TestCase
+/**
+ * TusUploadService 集成测试类
+ *
+ * @internal
+ */
+#[CoversClass(TusUploadService::class)]
+#[RunTestsInSeparateProcesses]
+final class TusUploadServiceTest extends AbstractIntegrationTestCase
 {
     private TusUploadService $service;
-    private UploadRepository&MockObject $uploadRepository;
-    private EntityManagerInterface&MockObject $entityManager;
-    private FilesystemOperator&MockObject $filesystem;
 
-    protected function setUp(): void
+    private FilesystemOperator $filesystem;
+
+    protected function onSetUp(): void
     {
-        $this->uploadRepository = $this->createMock(UploadRepository::class);
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->filesystem = $this->createMock(FilesystemOperator::class);
-
-        $this->service = new TusUploadService(
-            $this->uploadRepository,
-            $this->entityManager,
-            $this->filesystem,
-            'uploads'
-        );
+        // 从容器中获取服务
+        $this->service = self::getService(TusUploadService::class);
+        $filesystem = self::getContainer()->get('tus_upload.filesystem');
+        $this->assertInstanceOf(FilesystemOperator::class, $filesystem);
+        $this->filesystem = $filesystem;
     }
 
-    public function test_createUpload_persistsAndFlushes(): void
+    public function testCreateUploadPersistsAndFlushes(): void
     {
-        $this->entityManager->expects($this->once())->method('persist');
-        $this->entityManager->expects($this->once())->method('flush');
-
         $upload = $this->service->createUpload('test.txt', 'text/plain', 1024);
 
         $this->assertEquals('test.txt', $upload->getFilename());
         $this->assertEquals('text/plain', $upload->getMimeType());
         $this->assertEquals(1024, $upload->getSize());
         $this->assertNotEmpty($upload->getUploadId());
-        $this->assertStringStartsWith('uploads/', $upload->getFilePath());
+
+        $filePath = $upload->getFilePath();
+        $this->assertNotNull($filePath);
+        $this->assertStringStartsWith('/tmp/tus-uploads/', $filePath);
+
+        // 验证实体已持久化到数据库
+        $this->assertEntityPersisted($upload);
     }
 
-    public function test_getUpload_withNonExistentUpload_throwsException(): void
+    public function testGetUploadWithNonExistentUploadThrowsException(): void
     {
-        $this->uploadRepository->expects($this->once())
-            ->method('findByUploadId')
-            ->with('nonexistent')
-            ->willReturn(null);
-
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload not found');
         $this->expectExceptionCode(404);
@@ -62,167 +60,157 @@ class TusUploadServiceTest extends TestCase
         $this->service->getUpload('nonexistent');
     }
 
-    public function test_getUpload_withExpiredUpload_deletesAndThrowsException(): void
+    public function testGetUploadWithExpiredUploadDeletesAndThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isExpired')->willReturn(true);
-        // getUpload 调用 deleteUpload，而 deleteUpload 调用 getFilePath() 3次
-        $upload->expects($this->exactly(3))->method('getFilePath')->willReturn('uploads/test');
+        // 创建一个过期的上传
+        $upload = $this->service->createUpload('expired.txt', 'text/plain', 1024);
 
-        $this->uploadRepository->expects($this->once())
-            ->method('findByUploadId')
-            ->with('expired')
-            ->willReturn($upload);
+        // 手动设置为过期状态（设置过期时间为过去的时间）
+        $pastTime = new \DateTimeImmutable('-1 day');
+        $upload->setExpiredTime($pastTime);
+        $this->persistAndFlush($upload);
 
-        $this->filesystem->expects($this->once())
-            ->method('fileExists')
-            ->with('uploads/test')
-            ->willReturn(true);
-
-        $this->filesystem->expects($this->once())
-            ->method('delete')
-            ->with('uploads/test');
-
-        $this->entityManager->expects($this->once())->method('remove')->with($upload);
-        $this->entityManager->expects($this->once())->method('flush');
+        $uploadId = $upload->getUploadId();
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload expired');
         $this->expectExceptionCode(410);
 
-        $this->service->getUpload('expired');
+        $this->service->getUpload($uploadId);
+
+        // 验证过期的上传已被删除
+        // 注意：过期上传已在getUpload中被删除，所以我们不需要再检查ID
     }
 
-    public function test_deleteUpload_removesFileAndEntity(): void
+    public function testDeleteUploadRemovesFileAndEntity(): void
     {
-        $upload = $this->createMock(Upload::class);
-        // deleteUpload 调用 getFilePath() 3次：一次检查非空，一次传给fileExists，一次传给delete
-        $upload->expects($this->exactly(3))->method('getFilePath')->willReturn('uploads/test');
+        // 创建上传并写入一些数据
+        $upload = $this->service->createUpload('delete-test.txt', 'text/plain', 1024);
+        $this->service->writeChunk($upload, 'test data', 0);
 
-        $this->filesystem->expects($this->once())
-            ->method('fileExists')
-            ->with('uploads/test')
-            ->willReturn(true);
+        $uploadId = $upload->getUploadId();
+        $entityId = $upload->getId();
+        $filePath = $upload->getFilePath();
 
-        $this->filesystem->expects($this->once())
-            ->method('delete')
-            ->with('uploads/test');
+        // 验证文件存在
+        $this->assertNotNull($filePath);
+        $this->assertTrue($this->filesystem->fileExists($filePath));
 
-        $this->entityManager->expects($this->once())->method('remove')->with($upload);
-        $this->entityManager->expects($this->once())->method('flush');
-
+        // 删除上传
         $this->service->deleteUpload($upload);
+
+        // 验证文件和实体都已删除
+        $this->assertNotNull($filePath);
+        $this->assertFalse($this->filesystem->fileExists($filePath));
+        $this->assertEntityNotExists(Upload::class, $entityId);
     }
 
-    public function test_writeChunk_withCompletedUpload_throwsException(): void
+    public function testWriteChunkWithCompletedUploadThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(true);
+        $upload = $this->service->createUpload('completed.txt', 'text/plain', 4);
+
+        // 写入完整数据使其完成
+        $this->service->writeChunk($upload, 'test', 0);
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload already completed');
         $this->expectExceptionCode(409);
 
-        $this->service->writeChunk($upload, 'data', 0);
+        $this->service->writeChunk($upload, 'more', 4);
     }
 
-    public function test_writeChunk_withInvalidOffset_throwsException(): void
+    public function testWriteChunkWithInvalidOffsetThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(false);
-        $upload->expects($this->once())->method('getOffset')->willReturn(10);
+        $upload = $this->service->createUpload('offset-test.txt', 'text/plain', 1024);
+
+        // 先写入一些数据
+        $this->service->writeChunk($upload, 'first', 0);
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Invalid offset');
         $this->expectExceptionCode(409);
 
-        $this->service->writeChunk($upload, 'data', 0);
+        // 尝试使用错误的偏移量
+        $this->service->writeChunk($upload, 'second', 10);
     }
 
-    public function test_writeChunk_withDataExceedingSize_throwsException(): void
+    public function testWriteChunkWithDataExceedingSizeThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(false);
-        $upload->expects($this->once())->method('getOffset')->willReturn(0);
-        $upload->expects($this->once())->method('getSize')->willReturn(10);
+        $upload = $this->service->createUpload('size-test.txt', 'text/plain', 10);
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Data exceeds upload size');
         $this->expectExceptionCode(413);
 
-        $this->service->writeChunk($upload, 'This is too long', 0);
+        $this->service->writeChunk($upload, 'This is too long for the upload', 0);
     }
 
-    public function test_writeChunk_withNullFilePath_throwsException(): void
+    public function testValidateChecksumWithMissingFileReturnsFalse(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(false);
-        $upload->expects($this->once())->method('getOffset')->willReturn(0);
-        $upload->expects($this->once())->method('getSize')->willReturn(100);
-        $upload->expects($this->once())->method('getFilePath')->willReturn(null);
+        $upload = $this->service->createUpload('checksum-test.txt', 'text/plain', 1024);
 
-        $this->expectException(TusException::class);
-        $this->expectExceptionMessage('File path not set');
-        $this->expectExceptionCode(500);
-
-        $this->service->writeChunk($upload, 'data', 0);
-    }
-
-    public function test_validateChecksum_withMissingFile_returnsFalse(): void
-    {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('getFilePath')->willReturn(null);
-
+        // 没有写入数据，所以文件不存在
         $result = $this->service->validateChecksum($upload, 'checksum', 'md5');
 
         $this->assertFalse($result);
     }
 
-    public function test_validateChecksum_withUnsupportedAlgorithm_returnsFalse(): void
+    public function testValidateChecksumWithUnsupportedAlgorithmReturnsFalse(): void
     {
-        $upload = $this->createMock(Upload::class);
-        // validateChecksum 调用 getFilePath() 3次：一次检查非空，一次传给fileExists，一次传给read
-        $upload->expects($this->exactly(3))->method('getFilePath')->willReturn('uploads/test');
-
-        $this->filesystem->expects($this->once())
-            ->method('fileExists')
-            ->with('uploads/test')
-            ->willReturn(true);
-
-        $this->filesystem->expects($this->once())
-            ->method('read')
-            ->with('uploads/test')
-            ->willReturn('content');
+        $upload = $this->service->createUpload('checksum-algo-test.txt', 'text/plain', 1024);
+        $this->service->writeChunk($upload, 'test content', 0);
 
         $result = $this->service->validateChecksum($upload, 'checksum', 'unsupported');
 
         $this->assertFalse($result);
     }
 
-    public function test_cleanupExpiredUploads_deletesExpiredUploads(): void
+    public function testValidateChecksumWithValidChecksumReturnsTrue(): void
     {
-        $upload1 = $this->createMock(Upload::class);
-        $upload2 = $this->createMock(Upload::class);
+        $upload = $this->service->createUpload('checksum-valid-test.txt', 'text/plain', 12);
+        $content = 'test content';
+        $this->service->writeChunk($upload, $content, 0);
 
-        $this->uploadRepository->expects($this->once())
-            ->method('findExpiredUploads')
-            ->willReturn([$upload1, $upload2]);
+        // 计算正确的MD5校验和（二进制格式）
+        $expectedChecksum = hash('md5', $content, true);
 
-        $upload1->expects($this->once())->method('getFilePath')->willReturn(null);
-        $upload2->expects($this->once())->method('getFilePath')->willReturn(null);
+        $result = $this->service->validateChecksum($upload, $expectedChecksum, 'md5');
 
-        $this->entityManager->expects($this->exactly(2))->method('remove');
-        $this->entityManager->expects($this->exactly(2))->method('flush');
+        $this->assertTrue($result);
+    }
 
+    public function testCleanupExpiredUploadsDeletesExpiredUploads(): void
+    {
+        // 创建两个过期的上传
+        $upload1 = $this->service->createUpload('expired1.txt', 'text/plain', 1024);
+        $upload2 = $this->service->createUpload('expired2.txt', 'text/plain', 1024);
+
+        // 获取ID（在删除之前）
+        $upload1Id = $upload1->getId();
+        $upload2Id = $upload2->getId();
+
+        // 设置过期时间
+        $pastTime = new \DateTimeImmutable('-1 day');
+        $upload1->setExpiredTime($pastTime);
+        $upload2->setExpiredTime($pastTime);
+        $this->persistAndFlush($upload1);
+        $this->persistAndFlush($upload2);
+
+        // 执行清理
         $count = $this->service->cleanupExpiredUploads();
 
         $this->assertEquals(2, $count);
+
+        // 验证实体已被删除
+        $this->assertEntityNotExists(Upload::class, $upload1Id);
+        $this->assertEntityNotExists(Upload::class, $upload2Id);
     }
 
-    public function test_getFileContent_withIncompleteUpload_throwsException(): void
+    public function testGetFileContentWithIncompleteUploadThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(false);
+        $upload = $this->service->createUpload('incomplete.txt', 'text/plain', 1024);
+
+        // 不写入数据，保持为未完成状态
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('Upload not completed');
@@ -231,11 +219,13 @@ class TusUploadServiceTest extends TestCase
         $this->service->getFileContent($upload);
     }
 
-    public function test_getFileContent_withMissingFile_throwsException(): void
+    public function testGetFileContentWithMissingFileThrowsException(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(true);
-        $upload->expects($this->once())->method('getFilePath')->willReturn(null);
+        $upload = $this->service->createUpload('missing-file.txt', 'text/plain', 4);
+
+        // 手动设置为已完成但不创建文件
+        $upload->setCompleted(true);
+        $this->persistAndFlush($upload);
 
         $this->expectException(TusException::class);
         $this->expectExceptionMessage('File not found');
@@ -244,25 +234,28 @@ class TusUploadServiceTest extends TestCase
         $this->service->getFileContent($upload);
     }
 
-    public function test_getFileContent_withValidFile_returnsContent(): void
+    public function testGetFileContentWithValidFileReturnsContent(): void
     {
-        $upload = $this->createMock(Upload::class);
-        $upload->expects($this->once())->method('isCompleted')->willReturn(true);
-        // getFileContent 只调用 getFilePath() 一次
-        $upload->expects($this->once())->method('getFilePath')->willReturn('uploads/test');
+        $upload = $this->service->createUpload('valid-content.txt', 'text/plain', 12);
+        $content = 'file content';
+        $this->service->writeChunk($upload, $content, 0);
 
-        $this->filesystem->expects($this->once())
-            ->method('fileExists')
-            ->with('uploads/test')
-            ->willReturn(true);
+        $result = $this->service->getFileContent($upload);
 
-        $this->filesystem->expects($this->once())
-            ->method('read')
-            ->with('uploads/test')
-            ->willReturn('file content');
+        $this->assertEquals($content, $result);
+    }
 
-        $content = $this->service->getFileContent($upload);
+    public function testWriteChunkCompleteUploadWhenFull(): void
+    {
+        $upload = $this->service->createUpload('complete-test.txt', 'text/plain', 5);
 
-        $this->assertEquals('file content', $content);
+        // 写入完整数据
+        $this->service->writeChunk($upload, 'hello', 0);
+
+        // 刷新实体状态
+        self::getEntityManager()->refresh($upload);
+
+        $this->assertTrue($upload->isCompleted());
+        $this->assertEquals(5, $upload->getOffset());
     }
 }

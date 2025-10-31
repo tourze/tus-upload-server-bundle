@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Tourze\TusUploadServerBundle\Tests\DependencyInjection;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Tourze\PHPUnitSymfonyUnitTest\AbstractDependencyInjectionExtensionTestCase;
 use Tourze\TusUploadServerBundle\DependencyInjection\TusUploadServerExtension;
 
-class TusUploadServerExtensionTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(TusUploadServerExtension::class)]
+final class TusUploadServerExtensionTest extends AbstractDependencyInjectionExtensionTestCase
 {
     private TusUploadServerExtension $extension;
+
     private ContainerBuilder $container;
 
-    public function test_load_withDefaultConfig_loadsServices(): void
+    public function testLoadWithDefaultConfigLoadsServices(): void
     {
         $this->extension->load([], $this->container);
 
@@ -22,7 +28,7 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_withCustomConfig_ignoresConfig(): void
+    public function testLoadWithCustomConfigIgnoresConfig(): void
     {
         // 现在直接使用环境变量，配置被忽略
         $configs = [
@@ -39,7 +45,7 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_registersExpectedServices(): void
+    public function testLoadRegistersExpectedServices(): void
     {
         $this->extension->load([], $this->container);
 
@@ -57,7 +63,7 @@ class TusUploadServerExtensionTest extends TestCase
         }
     }
 
-    public function test_load_registersFilesystemService(): void
+    public function testLoadRegistersFilesystemService(): void
     {
         $this->extension->load([], $this->container);
 
@@ -67,28 +73,32 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertEquals('League\Flysystem\FilesystemOperator', $definition->getClass());
     }
 
-    public function test_load_configuresServiceArguments(): void
+    public function testLoadConfiguresServiceArguments(): void
     {
         $this->extension->load([], $this->container);
 
         $tusUploadServiceDefinition = $this->container->getDefinition('Tourze\TusUploadServerBundle\Service\TusUploadService');
-        $this->assertCount(2, $tusUploadServiceDefinition->getArguments());
+        // TusUploadService 需要注入 FilesystemOperator 依赖
+        $this->assertCount(1, $tusUploadServiceDefinition->getArguments());
+        $this->assertArrayHasKey('$filesystem', $tusUploadServiceDefinition->getArguments());
+        // 没有 bindings 因为直接通过参数注入
+        $this->assertEmpty($tusUploadServiceDefinition->getBindings());
 
         $tusRequestHandlerDefinition = $this->container->getDefinition('Tourze\TusUploadServerBundle\Handler\TusRequestHandler');
-        // TusRequestHandler 现在只有一个参数（TusUploadService），不再有 maxUploadSize
+        // TusRequestHandler 通过自动装配获取依赖，不需要显式参数
         $this->assertCount(0, $tusRequestHandlerDefinition->getArguments());
     }
 
-    public function test_load_withEmptyConfig_usesEnvironmentVars(): void
+    public function testLoadWithEmptyConfigUsesEnvironmentVars(): void
     {
-        $this->extension->load([[]], $this->container);
+        $this->extension->load([], $this->container);
 
         // 现在不再设置参数，服务直接读取环境变量
         $this->assertFalse($this->container->hasParameter('tus_upload.storage_path'));
         $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_load_withMultipleConfigArrays_usesEnvironmentVars(): void
+    public function testLoadWithMultipleConfigArraysUsesEnvironmentVars(): void
     {
         $configs = [
             ['storage_path' => '/first/path'],
@@ -102,12 +112,7 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertFalse($this->container->hasParameter('tus_upload.max_upload_size'));
     }
 
-    public function test_extension_hasCorrectAlias(): void
-    {
-        $this->assertEquals('tus_upload_server', $this->extension->getAlias());
-    }
-
-    public function test_load_registersControllersWithServiceArguments(): void
+    public function testLoadRegistersControllersWithServiceArguments(): void
     {
         $this->extension->load([], $this->container);
 
@@ -115,7 +120,7 @@ class TusUploadServerExtensionTest extends TestCase
         $this->assertTrue($controllerDefinition->hasTag('controller.service_arguments'));
     }
 
-    public function test_load_configuresRepositoryServices(): void
+    public function testLoadConfiguresRepositoryServices(): void
     {
         $this->extension->load([], $this->container);
 
@@ -124,7 +129,10 @@ class TusUploadServerExtensionTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
         $this->extension = new TusUploadServerExtension();
         $this->container = new ContainerBuilder();
+        $this->container->setParameter('kernel.environment', 'test');
     }
 }

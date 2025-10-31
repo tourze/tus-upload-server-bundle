@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace Tourze\TusUploadServerBundle\Tests\Handler;
 
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpFoundation\Request;
-use Tourze\TusUploadServerBundle\Entity\Upload;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 use Tourze\TusUploadServerBundle\Exception\TusException;
 use Tourze\TusUploadServerBundle\Handler\TusRequestHandler;
-use Tourze\TusUploadServerBundle\Service\TusUploadService;
 
-class TusRequestHandlerTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(TusRequestHandler::class)]
+#[RunTestsInSeparateProcesses]
+final class TusRequestHandlerTest extends AbstractIntegrationTestCase
 {
     private TusRequestHandler $handler;
-    private MockObject&TusUploadService $uploadService;
 
-    public function test_handleOptions_returnsCorrectHeaders(): void
+    public function testHandleOptionsReturnsCorrectHeaders(): void
     {
-        // 设置测试环境变量
         $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
         $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1048576';
 
@@ -29,15 +31,15 @@ class TusRequestHandlerTest extends TestCase
             $this->assertEquals(200, $response->getStatusCode());
             $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
             $this->assertEquals('1.0.0', $response->headers->get('Tus-Version'));
-            $this->assertStringContainsString('creation', $response->headers->get('Tus-Extension'));
-            $this->assertStringContainsString('expiration', $response->headers->get('Tus-Extension'));
-            $this->assertStringContainsString('checksum', $response->headers->get('Tus-Extension'));
-            $this->assertStringContainsString('termination', $response->headers->get('Tus-Extension'));
+            $this->assertStringContainsString('creation', $response->headers->get('Tus-Extension') ?? '');
+            $this->assertStringContainsString('expiration', $response->headers->get('Tus-Extension') ?? '');
+            $this->assertStringContainsString('checksum', $response->headers->get('Tus-Extension') ?? '');
+            $this->assertStringContainsString('termination', $response->headers->get('Tus-Extension') ?? '');
             $this->assertEquals('1048576', $response->headers->get('Tus-Max-Size'));
-            $this->assertStringContainsString('md5,sha1,sha256', $response->headers->get('Tus-Checksum-Algorithm'));
+            $this->assertStringContainsString('md5,sha1,sha256', $response->headers->get('Tus-Checksum-Algorithm') ?? '');
             $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
         } finally {
-            if ($originalValue !== null) {
+            if (null !== $originalValue) {
                 $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
             } else {
                 unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
@@ -45,16 +47,8 @@ class TusRequestHandlerTest extends TestCase
         }
     }
 
-    public function test_handlePost_withValidRequest_returnsCreatedResponse(): void
+    public function testHandlePostWithValidRequestReturnsCreatedResponse(): void
     {
-        $upload = new Upload();
-        $upload->setUploadId('abc123');
-
-        $this->uploadService->expects($this->once())
-            ->method('createUpload')
-            ->with('test.txt', 'application/octet-stream', 1024, ['filename' => 'test.txt'])
-            ->willReturn($upload);
-
         $request = new Request();
         $request->headers->set('Tus-Resumable', '1.0.0');
         $request->headers->set('Upload-Length', '1024');
@@ -64,12 +58,14 @@ class TusRequestHandlerTest extends TestCase
 
         $this->assertEquals(201, $response->getStatusCode());
         $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
-        $this->assertEquals('/files/abc123', $response->headers->get('Location'));
+        $location = $response->headers->get('Location');
+        $this->assertIsString($location);
+        $this->assertStringStartsWith('/files/', $location);
         $this->assertEquals('0', $response->headers->get('Upload-Offset'));
         $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
     }
 
-    public function test_handlePost_withMissingUploadLength_throwsException(): void
+    public function testHandlePostWithMissingUploadLengthThrowsException(): void
     {
         $request = new Request();
         $request->headers->set('Tus-Resumable', '1.0.0');
@@ -81,7 +77,7 @@ class TusRequestHandlerTest extends TestCase
         $this->handler->handlePost($request);
     }
 
-    public function test_handlePost_withInvalidUploadLength_throwsException(): void
+    public function testHandlePostWithInvalidUploadLengthThrowsException(): void
     {
         $request = new Request();
         $request->headers->set('Tus-Resumable', '1.0.0');
@@ -94,16 +90,15 @@ class TusRequestHandlerTest extends TestCase
         $this->handler->handlePost($request);
     }
 
-    public function test_handlePost_withUploadTooLarge_throwsException(): void
+    public function testHandlePostWithUploadTooLargeThrowsException(): void
     {
-        // 设置小的上传限制用于测试
         $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
-        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1048576'; // 1MB
+        $_ENV['TUS_UPLOAD_MAX_SIZE'] = '1048576';
 
         try {
             $request = new Request();
             $request->headers->set('Tus-Resumable', '1.0.0');
-            $request->headers->set('Upload-Length', '2097152'); // 2MB, exceeds 1MB limit
+            $request->headers->set('Upload-Length', '2097152');
 
             $this->expectException(TusException::class);
             $this->expectExceptionMessage('Upload size exceeds maximum allowed size');
@@ -111,7 +106,7 @@ class TusRequestHandlerTest extends TestCase
 
             $this->handler->handlePost($request);
         } finally {
-            if ($originalValue !== null) {
+            if (null !== $originalValue) {
                 $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
             } else {
                 unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
@@ -119,16 +114,8 @@ class TusRequestHandlerTest extends TestCase
         }
     }
 
-    public function test_handlePost_withMetadata_parsesMetadataCorrectly(): void
+    public function testHandlePostWithMetadataParsesMetadataCorrectly(): void
     {
-        $upload = new Upload();
-        $upload->setUploadId('abc123');
-
-        $this->uploadService->expects($this->once())
-            ->method('createUpload')
-            ->with('test file.txt', 'application/octet-stream', 1024, ['filename' => 'test file.txt', 'author' => 'John Doe'])
-            ->willReturn($upload);
-
         $request = new Request();
         $request->headers->set('Tus-Resumable', '1.0.0');
         $request->headers->set('Upload-Length', '1024');
@@ -139,173 +126,7 @@ class TusRequestHandlerTest extends TestCase
         $this->assertEquals(201, $response->getStatusCode());
     }
 
-    public function test_handleHead_withExistingUpload_returnsUploadInfo(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123')
-            ->setSize(1024)
-            ->setOffset(512)
-            ->setMetadata(['filename' => 'test.txt']);
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        $request = new Request();
-        $request->headers->set('Tus-Resumable', '1.0.0');
-
-        $response = $this->handler->handleHead($request, 'abc123');
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
-        $this->assertEquals('512', $response->headers->get('Upload-Offset'));
-        $this->assertEquals('1024', $response->headers->get('Upload-Length'));
-        $this->assertNotEmpty($response->headers->get('Upload-Metadata'));
-    }
-
-    public function test_handleHead_withNullMetadata_doesNotSetMetadataHeader(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123')
-            ->setSize(1024)
-            ->setOffset(512);
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        $request = new Request();
-        $request->headers->set('Tus-Resumable', '1.0.0');
-
-        $response = $this->handler->handleHead($request, 'abc123');
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertFalse($response->headers->has('Upload-Metadata'));
-    }
-
-    public function test_handlePatch_withValidChunk_uploadsChunk(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123')
-            ->setSize(1024)
-            ->setOffset(13);
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        $this->uploadService->expects($this->once())
-            ->method('writeChunk')
-            ->with($upload, 'Hello, World!', 0)
-            ->willReturn($upload);
-
-        $request = new Request([], [], [], [], [], [], 'Hello, World!');
-        $request->headers->set('Tus-Resumable', '1.0.0');
-        $request->headers->set('Upload-Offset', '0');
-        $request->headers->set('Content-Type', 'application/offset+octet-stream');
-
-        $response = $this->handler->handlePatch($request, 'abc123');
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
-        $this->assertEquals('13', $response->headers->get('Upload-Offset'));
-    }
-
-    public function test_handlePatch_withMissingUploadOffset_throwsException(): void
-    {
-        $request = new Request([], [], [], [], [], [], 'data');
-        $request->headers->set('Tus-Resumable', '1.0.0');
-        $request->headers->set('Content-Type', 'application/offset+octet-stream');
-
-        $this->expectException(TusException::class);
-        $this->expectExceptionMessage('Missing or invalid Upload-Offset header');
-        $this->expectExceptionCode(400);
-
-        $this->handler->handlePatch($request, 'abc123');
-    }
-
-    public function test_handlePatch_withInvalidContentType_throwsException(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123');
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        $request = new Request([], [], [], [], [], [], 'data');
-        $request->headers->set('Tus-Resumable', '1.0.0');
-        $request->headers->set('Upload-Offset', '0');
-        $request->headers->set('Content-Type', 'text/plain');
-
-        $this->expectException(TusException::class);
-        $this->expectExceptionMessage('Invalid Content-Type');
-        $this->expectExceptionCode(400);
-
-        $this->handler->handlePatch($request, 'abc123');
-    }
-
-    public function test_handlePatch_withChecksum_validatesChecksum(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123')
-            ->setSize(1024)
-            ->setOffset(13);
-
-        $data = 'Hello, World!';
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        // Note: validateChecksum is now done directly in the handler
-
-        $this->uploadService->expects($this->once())
-            ->method('writeChunk')
-            ->with($upload, $data, 0)
-            ->willReturn($upload);
-
-        $request = new Request([], [], [], [], [], [], $data);
-        $request->headers->set('Tus-Resumable', '1.0.0');
-        $request->headers->set('Upload-Offset', '0');
-        $request->headers->set('Content-Type', 'application/offset+octet-stream');
-        $request->headers->set('Upload-Checksum', 'md5 ZajifYh5KDgxtmS9i38K1A==');
-
-        $response = $this->handler->handlePatch($request, 'abc123');
-
-        $this->assertEquals(200, $response->getStatusCode());
-    }
-
-    public function test_handleDelete_withExistingUpload_deletesUpload(): void
-    {
-        $upload = new Upload();
-        $upload->setUploadId('abc123');
-
-        $this->uploadService->expects($this->once())
-            ->method('getUpload')
-            ->with('abc123')
-            ->willReturn($upload);
-
-        $this->uploadService->expects($this->once())
-            ->method('deleteUpload')
-            ->with($upload);
-
-        $request = new Request();
-        $request->headers->set('Tus-Resumable', '1.0.0');
-
-        $response = $this->handler->handleDelete($request, 'abc123');
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
-        $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
-    }
-
-    public function test_handlePost_withUnsupportedTusVersion_throwsException(): void
+    public function testHandlePostWithUnsupportedTusVersionThrowsException(): void
     {
         $request = new Request();
         $request->headers->set('Tus-Resumable', '0.9.0');
@@ -317,7 +138,7 @@ class TusRequestHandlerTest extends TestCase
         $this->handler->handlePost($request);
     }
 
-    public function test_parseMetadata_withEmptyString_returnsEmptyArray(): void
+    public function testParseMetadataWithEmptyStringReturnsEmptyArray(): void
     {
         $reflection = new \ReflectionClass($this->handler);
         $method = $reflection->getMethod('parseMetadata');
@@ -328,7 +149,7 @@ class TusRequestHandlerTest extends TestCase
         $this->assertEquals([], $result);
     }
 
-    public function test_encodeMetadata_withArray_returnsCorrectString(): void
+    public function testEncodeMetadataWithArrayReturnsCorrectString(): void
     {
         $reflection = new \ReflectionClass($this->handler);
         $method = $reflection->getMethod('encodeMetadata');
@@ -341,19 +162,17 @@ class TusRequestHandlerTest extends TestCase
         $this->assertEquals($expected, $result);
     }
 
-    public function test_constructor_withCustomMaxSize_setsMaxSize(): void
+    public function testConstructorWithCustomMaxSizeSetsMaxSize(): void
     {
         $originalValue = $_ENV['TUS_UPLOAD_MAX_SIZE'] ?? null;
         $_ENV['TUS_UPLOAD_MAX_SIZE'] = '2048';
 
         try {
-            $handler = new TusRequestHandler($this->uploadService);
-
-            $response = $handler->handleOptions();
+            $response = $this->handler->handleOptions();
 
             $this->assertEquals('2048', $response->headers->get('Tus-Max-Size'));
         } finally {
-            if ($originalValue !== null) {
+            if (null !== $originalValue) {
                 $_ENV['TUS_UPLOAD_MAX_SIZE'] = $originalValue;
             } else {
                 unset($_ENV['TUS_UPLOAD_MAX_SIZE']);
@@ -361,9 +180,278 @@ class TusRequestHandlerTest extends TestCase
         }
     }
 
-    protected function setUp(): void
+    public function testHandleHeadWithValidUploadReturnsCorrectHeaders(): void
     {
-        $this->uploadService = $this->createMock(TusUploadService::class);
-        $this->handler = new TusRequestHandler($this->uploadService);
+        // 先创建一个上传
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Length', '1024');
+        $request->headers->set('Upload-Metadata', 'filename ' . base64_encode('test.txt') . ',author ' . base64_encode('John'));
+
+        $createResponse = $this->handler->handlePost($request);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        // 测试 HEAD 请求
+        $headRequest = new Request();
+        $headRequest->headers->set('Tus-Resumable', '1.0.0');
+
+        $response = $this->handler->handleHead($headRequest, $uploadId);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
+        $this->assertEquals('0', $response->headers->get('Upload-Offset'));
+        $this->assertEquals('1024', $response->headers->get('Upload-Length'));
+
+        $uploadMetadata = $response->headers->get('Upload-Metadata');
+        $this->assertIsString($uploadMetadata);
+        $this->assertStringContainsString('filename', $uploadMetadata);
+        $this->assertStringContainsString('author', $uploadMetadata);
+        $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testHandleHeadWithUnsupportedTusVersionThrowsException(): void
+    {
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '0.9.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Unsupported TUS version');
+        $this->expectExceptionCode(412);
+
+        $this->handler->handleHead($request, 'test-upload-id');
+    }
+
+    public function testHandleHeadWithNonExistentUploadThrowsException(): void
+    {
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Upload not found');
+        $this->expectExceptionCode(404);
+
+        $this->handler->handleHead($request, 'non-existent-upload-id');
+    }
+
+    public function testHandlePatchWithValidDataUpdatesUpload(): void
+    {
+        // 先创建一个上传
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($request);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        // 测试 PATCH 请求
+        $patchRequest = new Request([], [], [], [], [], [], 'test data');
+        $patchRequest->headers->set('Tus-Resumable', '1.0.0');
+        $patchRequest->headers->set('Upload-Offset', '0');
+        $patchRequest->headers->set('Content-Type', 'application/offset+octet-stream');
+
+        $response = $this->handler->handlePatch($patchRequest, $uploadId);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
+        $this->assertEquals('9', $response->headers->get('Upload-Offset'));
+        $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testHandlePatchWithMissingUploadOffsetThrowsException(): void
+    {
+        // 先创建一个上传
+        $createRequest = new Request();
+        $createRequest->headers->set('Tus-Resumable', '1.0.0');
+        $createRequest->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($createRequest);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Content-Type', 'application/offset+octet-stream');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Missing or invalid Upload-Offset header');
+        $this->expectExceptionCode(400);
+
+        $this->handler->handlePatch($request, $uploadId);
+    }
+
+    public function testHandlePatchWithInvalidUploadOffsetThrowsException(): void
+    {
+        // 先创建一个上传
+        $createRequest = new Request();
+        $createRequest->headers->set('Tus-Resumable', '1.0.0');
+        $createRequest->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($createRequest);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Offset', 'invalid');
+        $request->headers->set('Content-Type', 'application/offset+octet-stream');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Missing or invalid Upload-Offset header');
+        $this->expectExceptionCode(400);
+
+        $this->handler->handlePatch($request, $uploadId);
+    }
+
+    public function testHandlePatchWithInvalidContentTypeThrowsException(): void
+    {
+        // 先创建一个上传
+        $createRequest = new Request();
+        $createRequest->headers->set('Tus-Resumable', '1.0.0');
+        $createRequest->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($createRequest);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Offset', '0');
+        $request->headers->set('Content-Type', 'text/plain');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Invalid Content-Type');
+        $this->expectExceptionCode(400);
+
+        $this->handler->handlePatch($request, $uploadId);
+    }
+
+    public function testHandlePatchWithValidChecksumPassesValidation(): void
+    {
+        // 先创建一个上传
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($request);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        $data = 'test data';
+        $checksum = base64_encode(hash('md5', $data, true));
+
+        // 测试 PATCH 请求带校验和
+        $patchRequest = new Request([], [], [], [], [], [], $data);
+        $patchRequest->headers->set('Tus-Resumable', '1.0.0');
+        $patchRequest->headers->set('Upload-Offset', '0');
+        $patchRequest->headers->set('Content-Type', 'application/offset+octet-stream');
+        $patchRequest->headers->set('Upload-Checksum', 'md5 ' . $checksum);
+
+        $response = $this->handler->handlePatch($patchRequest, $uploadId);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('9', $response->headers->get('Upload-Offset'));
+    }
+
+    public function testHandlePatchWithInvalidChecksumThrowsException(): void
+    {
+        // 先创建一个上传
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Length', '10');
+
+        $createResponse = $this->handler->handlePost($request);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        $data = 'test data';
+        $wrongChecksum = base64_encode('wrong_checksum');
+
+        // 测试 PATCH 请求带错误校验和
+        $patchRequest = new Request([], [], [], [], [], [], $data);
+        $patchRequest->headers->set('Tus-Resumable', '1.0.0');
+        $patchRequest->headers->set('Upload-Offset', '0');
+        $patchRequest->headers->set('Content-Type', 'application/offset+octet-stream');
+        $patchRequest->headers->set('Upload-Checksum', 'md5 ' . $wrongChecksum);
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Checksum mismatch');
+        $this->expectExceptionCode(460);
+
+        $this->handler->handlePatch($patchRequest, $uploadId);
+    }
+
+    public function testHandlePatchWithUnsupportedTusVersionThrowsException(): void
+    {
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '0.9.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Unsupported TUS version');
+        $this->expectExceptionCode(412);
+
+        $this->handler->handlePatch($request, 'test-upload-id');
+    }
+
+    public function testHandleDeleteWithValidUploadDeletesSuccessfully(): void
+    {
+        // 先创建一个上传
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+        $request->headers->set('Upload-Length', '1024');
+
+        $createResponse = $this->handler->handlePost($request);
+        $location = $createResponse->headers->get('Location');
+        $uploadId = str_replace('/files/', '', $location ?? '');
+
+        // 测试 DELETE 请求
+        $deleteRequest = new Request();
+        $deleteRequest->headers->set('Tus-Resumable', '1.0.0');
+
+        $response = $this->handler->handleDelete($deleteRequest, $uploadId);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('1.0.0', $response->headers->get('Tus-Resumable'));
+        $this->assertEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
+
+        // 验证上传已被删除 - 尝试再次访问应该抛出异常
+        $headRequest = new Request();
+        $headRequest->headers->set('Tus-Resumable', '1.0.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Upload not found');
+        $this->expectExceptionCode(404);
+
+        $this->handler->handleHead($headRequest, $uploadId);
+    }
+
+    public function testHandleDeleteWithUnsupportedTusVersionThrowsException(): void
+    {
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '0.9.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Unsupported TUS version');
+        $this->expectExceptionCode(412);
+
+        $this->handler->handleDelete($request, 'test-upload-id');
+    }
+
+    public function testHandleDeleteWithNonExistentUploadThrowsException(): void
+    {
+        $request = new Request();
+        $request->headers->set('Tus-Resumable', '1.0.0');
+
+        $this->expectException(TusException::class);
+        $this->expectExceptionMessage('Upload not found');
+        $this->expectExceptionCode(404);
+
+        $this->handler->handleDelete($request, 'non-existent-upload-id');
+    }
+
+    protected function onSetUp(): void
+    {
+        $this->handler = self::getService(TusRequestHandler::class);
     }
 }

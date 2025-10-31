@@ -5,6 +5,7 @@ namespace Tourze\TusUploadServerBundle;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Tourze\BundleDependency\BundleDependencyInterface;
+use Tourze\FileStorageBundle\FileStorageBundle;
 use Tourze\RoutingAutoLoaderBundle\RoutingAutoLoaderBundle;
 
 class TusUploadServerBundle extends Bundle implements BundleDependencyInterface
@@ -14,6 +15,7 @@ class TusUploadServerBundle extends Bundle implements BundleDependencyInterface
         return [
             DoctrineBundle::class => ['all' => true],
             RoutingAutoLoaderBundle::class => ['all' => true],
+            FileStorageBundle::class => ['all' => true],
         ];
     }
 }

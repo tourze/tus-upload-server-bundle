@@ -4,12 +4,37 @@ declare(strict_types=1);
 
 namespace Tourze\TusUploadServerBundle\Tests\Entity;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
+use Tourze\PHPUnitDoctrineEntity\AbstractEntityTestCase;
 use Tourze\TusUploadServerBundle\Entity\Upload;
 
-class UploadTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(Upload::class)]
+final class UploadTest extends AbstractEntityTestCase
 {
-    public function test_constructor_setsDefaultValues(): void
+    protected function createEntity(): object
+    {
+        return new Upload();
+    }
+
+    /** @return iterable<string, array{0: string, 1: mixed}> */
+    public static function propertiesProvider(): iterable
+    {
+        return [
+            'uploadId' => ['uploadId', 'test_value'],
+            'filename' => ['filename', 'test_value'],
+            'mimeType' => ['mimeType', 'test_value'],
+            'size' => ['size', 123],
+            'offset' => ['offset', 123],
+            'completed' => ['completed', true],
+        ];
+    }
+
+    public function testConstructorSetsDefaultValues(): void
     {
         $upload = new Upload();
 
@@ -23,17 +48,17 @@ class UploadTest extends TestCase
         $this->assertNull($upload->getChecksumAlgorithm());
     }
 
-    public function test_settersAndGetters_workCorrectly(): void
+    public function testSettersAndGettersWorkCorrectly(): void
     {
         $upload = new Upload();
-        $upload->setUploadId('test123')
-            ->setFilename('test.txt')
-            ->setMimeType('text/plain')
-            ->setSize(1024)
-            ->setMetadata(['key' => 'value'])
-            ->setFilePath('uploads/test123')
-            ->setChecksum('abc123')
-            ->setChecksumAlgorithm('md5');
+        $upload->setUploadId('test123');
+        $upload->setFilename('test.txt');
+        $upload->setMimeType('text/plain');
+        $upload->setSize(1024);
+        $upload->setMetadata(['key' => 'value']);
+        $upload->setFilePath('uploads/test123');
+        $upload->setChecksum('abc123');
+        $upload->setChecksumAlgorithm('md5');
 
         $this->assertEquals('test123', $upload->getUploadId());
         $this->assertEquals('test.txt', $upload->getFilename());
@@ -45,23 +70,23 @@ class UploadTest extends TestCase
         $this->assertEquals('md5', $upload->getChecksumAlgorithm());
     }
 
-    public function test_toString_returnsExpectedFormat(): void
+    public function testToStringReturnsExpectedFormat(): void
     {
         $upload = new Upload();
-        $upload->setUploadId('test123')
-            ->setFilename('test.txt');
+        $upload->setUploadId('test123');
+        $upload->setFilename('test.txt');
 
         $this->assertEquals('test.txt (test123)', (string) $upload);
     }
 
-    public function test_toString_withUnknownValues_returnsDefaultFormat(): void
+    public function testToStringWithUnknownValuesReturnsDefaultFormat(): void
     {
         $upload = new Upload();
 
         $this->assertEquals('unknown (unknown)', (string) $upload);
     }
 
-    public function test_getProgress_withZeroSize_returnsZero(): void
+    public function testGetProgressWithZeroSizeReturnsZero(): void
     {
         $upload = new Upload();
         $upload->setSize(0);
@@ -69,25 +94,25 @@ class UploadTest extends TestCase
         $this->assertEquals(0.0, $upload->getProgress());
     }
 
-    public function test_getProgress_withPartialUpload_returnsCorrectRatio(): void
+    public function testGetProgressWithPartialUploadReturnsCorrectRatio(): void
     {
         $upload = new Upload();
-        $upload->setSize(1000)
-            ->setOffset(250);
+        $upload->setSize(1000);
+        $upload->setOffset(250);
 
         $this->assertEquals(0.25, $upload->getProgress());
     }
 
-    public function test_getProgress_withCompleteUpload_returnsOne(): void
+    public function testGetProgressWithCompleteUploadReturnsOne(): void
     {
         $upload = new Upload();
-        $upload->setSize(1000)
-            ->setOffset(1000);
+        $upload->setSize(1000);
+        $upload->setOffset(1000);
 
         $this->assertEquals(1.0, $upload->getProgress());
     }
 
-    public function test_setCompleted_withTrue_setsCompletionTime(): void
+    public function testSetCompletedWithTrueSetsCompletionTime(): void
     {
         $upload = new Upload();
         $this->assertFalse($upload->isCompleted());
@@ -99,7 +124,7 @@ class UploadTest extends TestCase
         $this->assertInstanceOf(\DateTimeImmutable::class, $upload->getCompleteTime());
     }
 
-    public function test_setCompleted_withFalse_doesNotChangeCompletionTime(): void
+    public function testSetCompletedWithFalseDoesNotChangeCompletionTime(): void
     {
         $upload = new Upload();
         $upload->setCompleted(true);
@@ -111,7 +136,7 @@ class UploadTest extends TestCase
         $this->assertEquals($originalCompleteTime, $upload->getCompleteTime());
     }
 
-    public function test_isExpired_withFutureDate_returnsFalse(): void
+    public function testIsExpiredWithFutureDateReturnsFalse(): void
     {
         $upload = new Upload();
         $futureDate = new \DateTimeImmutable('+1 day');
@@ -120,7 +145,7 @@ class UploadTest extends TestCase
         $this->assertFalse($upload->isExpired());
     }
 
-    public function test_isExpired_withPastDate_returnsTrue(): void
+    public function testIsExpiredWithPastDateReturnsTrue(): void
     {
         $upload = new Upload();
         $pastDate = new \DateTimeImmutable('-1 day');
@@ -129,7 +154,7 @@ class UploadTest extends TestCase
         $this->assertTrue($upload->isExpired());
     }
 
-    public function test_createTime_getterAndSetter(): void
+    public function testCreateTimeGetterAndSetter(): void
     {
         $upload = new Upload();
         $createTime = new \DateTimeImmutable('2023-01-01');
@@ -139,7 +164,7 @@ class UploadTest extends TestCase
         $this->assertEquals($createTime, $upload->getCreateTime());
     }
 
-    public function test_completeTime_getterAndSetter(): void
+    public function testCompleteTimeGetterAndSetter(): void
     {
         $upload = new Upload();
         $completeTime = new \DateTimeImmutable('2023-01-02');
@@ -149,7 +174,7 @@ class UploadTest extends TestCase
         $this->assertEquals($completeTime, $upload->getCompleteTime());
     }
 
-    public function test_expiredTime_getterAndSetter(): void
+    public function testExpiredTimeGetterAndSetter(): void
     {
         $upload = new Upload();
         $expiredTime = new \DateTimeImmutable('2023-12-31');
@@ -159,7 +184,7 @@ class UploadTest extends TestCase
         $this->assertEquals($expiredTime, $upload->getExpiredTime());
     }
 
-    public function test_offset_getterAndSetter(): void
+    public function testOffsetGetterAndSetter(): void
     {
         $upload = new Upload();
 
@@ -168,7 +193,7 @@ class UploadTest extends TestCase
         $this->assertEquals(512, $upload->getOffset());
     }
 
-    public function test_metadata_withNullValue_handlesCorrectly(): void
+    public function testMetadataWithNullValueHandlesCorrectly(): void
     {
         $upload = new Upload();
 
@@ -177,7 +202,7 @@ class UploadTest extends TestCase
         $this->assertNull($upload->getMetadata());
     }
 
-    public function test_metadata_withEmptyArray_handlesCorrectly(): void
+    public function testMetadataWithEmptyArrayHandlesCorrectly(): void
     {
         $upload = new Upload();
 
@@ -186,7 +211,7 @@ class UploadTest extends TestCase
         $this->assertEquals([], $upload->getMetadata());
     }
 
-    public function test_id_defaultsToNull(): void
+    public function testIdDefaultsToNull(): void
     {
         $upload = new Upload();
 
