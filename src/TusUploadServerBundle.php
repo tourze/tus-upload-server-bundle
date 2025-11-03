@@ -7,6 +7,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Tourze\BundleDependency\BundleDependencyInterface;
 use Tourze\FileStorageBundle\FileStorageBundle;
 use Tourze\RoutingAutoLoaderBundle\RoutingAutoLoaderBundle;
+use Tourze\EasyAdminMenuBundle\EasyAdminMenuBundle;
 
 class TusUploadServerBundle extends Bundle implements BundleDependencyInterface
 {
@@ -16,6 +17,7 @@ class TusUploadServerBundle extends Bundle implements BundleDependencyInterface
             DoctrineBundle::class => ['all' => true],
             RoutingAutoLoaderBundle::class => ['all' => true],
             FileStorageBundle::class => ['all' => true],
+            EasyAdminMenuBundle::class => ['all' => true],
         ];
     }
 }
