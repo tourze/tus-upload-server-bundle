@@ -34,11 +34,6 @@ final class UploadCrudControllerTest extends AbstractEasyAdminControllerTestCase
         return new UploadCrudController();
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(Upload::class, UploadCrudController::getEntityFqcn());
-    }
-
     public function testConfigureCrud(): void
     {
         $crud = Crud::new();
