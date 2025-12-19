@@ -6,7 +6,7 @@ namespace Tourze\TusUploadServerBundle\DependencyInjection;
 
 use Tourze\SymfonyDependencyServiceLoader\AutoExtension;
 
-class TusUploadServerExtension extends AutoExtension
+final class TusUploadServerExtension extends AutoExtension
 {
     protected function getConfigDir(): string
     {
